@@ -3,6 +3,7 @@ import openpyxl
 import os
 import customtkinter
 import time
+import pyttsx3
 from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.worksheet.table import Table, TableStyleInfo
@@ -16,8 +17,8 @@ def clear():
 r = sr.Recognizer()
 
 i = 0
-opcion = 0
 alumnos = []
+
 #Cargar archivo de alumnos
 try:
     with open("alumnos_raw.txt", "r") as file:
@@ -31,6 +32,14 @@ def thread_start(textbox):
     t = Thread(target=pase_lista, args=(textbox,), daemon=True)
     t.start()
 
+def thread_retardos(textbox, numeros):
+    t = Thread(target=retardos, args=(textbox, numeros,), daemon=True)
+    t.start()
+
+def thread_countdown(textbox, numeros, alumnos_sort):
+    t = Thread(target=countdown, args=(textbox, numeros, alumnos_sort), daemon=True)
+    t.start()
+
 def pase_lista(textbox):
     #Números del 1 al 25 en texto y su valor numérico
     numeros_texto = {
@@ -39,17 +48,32 @@ def pase_lista(textbox):
         "dieciocho": 18, "diecinueve": 19, "veinte": 20, "veintiuno": 21, "veintidos": 22, "veintitres": 23, "veinticuatro": 24, "veinticinco": 25
     }
 
+    count=0
+    engine = pyttsx3.init()
+    engine.setProperty('rate', 130)
+
+    # Arreglo para guardar 'Puntual' o 'Retardo'
+    numeros = ['Falta'] * 25
+    
+    #Colores para cada estado de asistencia
     textbox.tag_config('puntual', foreground="#45CE30")
     textbox.tag_config('warning', foreground="yellow")
     textbox.tag_config('falta', foreground="red")
 
-    # Arreglo para guardar 'Puntual' o 'Retardo'
-    numeros = ['Retardo'] * 25
-    while True:
+    #Comienza pase de lista
+    while count<2:
         try:
+            alumno_loop = str(count+1)
+            print("Alumno actual: " + alumno_loop)
+
+            engine.say("Number " + alumno_loop)
+            engine.runAndWait()
+
+            textbox.insert("0.0", "Escuchando...\n\n")
+            print("Escuchando...")
+            
             with sr.Microphone() as source:
-                textbox.insert("0.0", "Escuchando...\n\n")
-                print("Escuchando...")
+                
                 #r.adjust_for_ambient_noise(source)
                 audio = r.record(source, duration=5)
 
@@ -88,10 +112,98 @@ def pase_lista(textbox):
         except sr.UnknownValueError:
             print("No se pudo entender el audio. Por favor revisa que su micrófono esté conectado.")
             textbox.insert("0.0", "No se pudo entender el audio. Por favor revisa que su micrófono esté conectado.\n\n")
+            count = count+1
+            continue
+        except sr.RequestError as e:
+            print("No se pudo solicitar resultados; {0}".format(e))
+        count = count+1
+    thread_retardos(textbox, numeros)
+    thread_countdown(textbox, numeros, alumnos_sort)
+
+def retardos(textbox, numeros):
+    tiempo_tolerancia=5
+    #Inicia tiempo de tolerancia para retardos
+
+    #Números del 1 al 25 en texto y su valor numérico
+    numeros_texto = {
+        "uno": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "siete": 7, "ocho": 8, "nueve": 9,
+        "diez": 10, "once": 11, "doce": 12, "trece": 13, "catorce": 14, "quince": 15, "dieciseis": 16, "diecisiete": 17,
+        "dieciocho": 18, "diecinueve": 19, "veinte": 20, "veintiuno": 21, "veintidos": 22, "veintitres": 23, "veinticuatro": 24, "veinticinco": 25
+    }
+
+    engine = pyttsx3.init()
+    engine.setProperty('rate', 130)
+
+    #Colores para cada estado de asistencia
+    textbox.tag_config('puntual', foreground="#45CE30")
+    textbox.tag_config('warning', foreground="yellow")
+    textbox.tag_config('falta', foreground="red")
+
+    while True:
+        try:
+            with sr.Microphone() as source:
+                    
+                #r.adjust_for_ambient_noise(source, duration=0.2)
+                audio = r.record(source, duration=tiempo_tolerancia)
+
+                # Reconocer el audio usando Google Web Speech API
+                text = r.recognize_google(audio, language="es-ES")
+                print("Oración reconocida: " + text)
+
+                # Dividir el texto en palabras
+                palabras = text.split()
+
+                #Comprobar si el número aparece como palabra o como número
+                for i, numero in enumerate(numeros_texto):
+                    if numero in palabras:
+                        numeros[i] = 'Retardo'
+                    elif str(numeros_texto[numero]) in palabras:
+                        numeros[i] = 'Retardo'
+
+                textbox.delete("0.0", "end")
+
+                #Imprimir los resultados
+                print("Resultados:", numeros)
+                for j in range(no_alumnos):
+                    alumno_actual = str(alumnos_sort[j])
+                    numero_asistencia = str(j+1)
+                    if numeros[j] == 'Puntual':
+                        start_index = textbox.index("end")
+                        textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
+                        textbox.insert("end", "Puntual\n", "puntual")
+                        end_index = textbox.index("end")
+                    elif numeros[j] == 'Retardo':
+                        start_index = textbox.index("end")
+                        textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
+                        textbox.insert("end", "Retardo\n", "warning")
+                        end_index = textbox.index("end")
+                    else:
+                        numeros[j] = 'Falta'
+                        start_index = textbox.index("end")
+                        textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
+                        textbox.insert("end", "Falta\n", "falta")
+                        end_index = textbox.index("end")
+        except sr.UnknownValueError:
+            print("No se pudo entender el audio. Por favor revisa que su micrófono esté conectado.")
+            textbox.insert("0.0", "No se pudo entender el audio. Por favor revisa que su micrófono esté conectado.\n\n")
             continue
         except sr.RequestError as e:
             print("No se pudo solicitar resultados; {0}".format(e))
 
+def countdown(textbox, numeros, alumnos_sort):
+    tiempo_tolerancia=15
+    while tiempo_tolerancia:
+        mins, secs = divmod(tiempo_tolerancia, 60) 
+        timer = '{:02d}:{:02d}'.format(mins, secs)
+        #textbox.delete("0.0", "end")
+        textbox.insert("end", timer + "\n")
+        time.sleep(1) 
+        tiempo_tolerancia -= 1
+    guardar_lista(textbox, numeros, alumnos_sort)
+
+def guardar_lista(textbox, numeros, alumnos_sort):
+    textbox.delete("0.0", "end")
+    textbox.insert("end", "Guardando Lista\n")
     # Crear un nuevo libro de trabajo y una hoja
     wb = Workbook()
     ws = wb.active
@@ -127,7 +239,7 @@ def pase_lista(textbox):
     ws.add_table(tab)
 
     # Guardar el archivo
-    wb.save("Lista.xlsx")
+    wb.save("Lista de Asistencia.xlsx")
 
 def salir_programa():
     quit()
