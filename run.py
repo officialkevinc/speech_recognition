@@ -61,7 +61,7 @@ def pase_lista(textbox):
     textbox.tag_config('falta', foreground="red")
 
     #Comienza pase de lista
-    while count<2:
+    while count<no_alumnos:
         try:
             alumno_loop = str(count+1)
             print("Alumno actual: " + alumno_loop)
@@ -120,7 +120,7 @@ def pase_lista(textbox):
     thread_retardos(textbox, numeros)
     thread_countdown(textbox, numeros, alumnos_sort)
 
-def retardos(textbox, numeros):
+def retardos(textbox, numeros, tiempo_tolerancia):
     tiempo_tolerancia=5
     #Inicia tiempo de tolerancia para retardos
 
@@ -199,6 +199,7 @@ def countdown(textbox, numeros, alumnos_sort):
         textbox.insert("end", timer + "\n")
         time.sleep(1) 
         tiempo_tolerancia -= 1
+        return tiempo_tolerancia
     guardar_lista(textbox, numeros, alumnos_sort)
 
 def guardar_lista(textbox, numeros, alumnos_sort):
