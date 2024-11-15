@@ -155,6 +155,7 @@ textbox.pack(expand=True, side="right", fill="both")
 
 app.mainloop()
 
+
 #while opcion != 4:
 #    print("Selecciona una opcion\n1.- Crear Lista\n2.- Iniciar Pase de Lista\n3.- Cargar Contenido\n4.- Salir")
 #    opcion = int(input("\nSeleccione una opcion: "))
