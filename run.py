@@ -69,7 +69,7 @@ def pase_lista(textbox):
             engine.say("Number " + alumno_loop)
             engine.runAndWait()
 
-            textbox.insert("0.0", "Escuchando...\n\n")
+            textbox.insert("end", "Escuchando a Numero " + alumno_loop + "...\n\n")
             print("Escuchando...")
             
             with sr.Microphone() as source:
@@ -111,7 +111,7 @@ def pase_lista(textbox):
                     #textbox.insert("0.0", numero_asistencia + ".- " + alumno_actual + " - " + numeros[j] + "\n")
         except sr.UnknownValueError:
             print("No se pudo entender el audio. Por favor revisa que su micrófono esté conectado.")
-            textbox.insert("0.0", "No se pudo entender el audio. Por favor revisa que su micrófono esté conectado.\n\n")
+            textbox.insert("end", "No se reconoció asistencia para este número. Pasando al siguiente.\n\n")
             count = count+1
             continue
         except sr.RequestError as e:
@@ -120,8 +120,8 @@ def pase_lista(textbox):
     thread_retardos(textbox, numeros)
     thread_countdown(textbox, numeros, alumnos_sort)
 
-def retardos(textbox, numeros, tiempo_tolerancia):
-    tiempo_tolerancia=5
+def retardos(textbox, numeros):
+    tiempo_tolerancia=15
     #Inicia tiempo de tolerancia para retardos
 
     #Números del 1 al 25 en texto y su valor numérico
@@ -185,7 +185,7 @@ def retardos(textbox, numeros, tiempo_tolerancia):
                         end_index = textbox.index("end")
         except sr.UnknownValueError:
             print("No se pudo entender el audio. Por favor revisa que su micrófono esté conectado.")
-            textbox.insert("0.0", "No se pudo entender el audio. Por favor revisa que su micrófono esté conectado.\n\n")
+            textbox.insert("end", "No se pudo entender el audio. Por favor revise que su micrófono esté conectado.\n\n")
             continue
         except sr.RequestError as e:
             print("No se pudo solicitar resultados; {0}".format(e))
@@ -199,7 +199,6 @@ def countdown(textbox, numeros, alumnos_sort):
         textbox.insert("end", timer + "\n")
         time.sleep(1) 
         tiempo_tolerancia -= 1
-        return tiempo_tolerancia
     guardar_lista(textbox, numeros, alumnos_sort)
 
 def guardar_lista(textbox, numeros, alumnos_sort):
