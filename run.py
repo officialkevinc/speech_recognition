@@ -16,7 +16,7 @@ r = sr.Recognizer()
 i = 0
 opcion = 0
 alumnos = []
-#Read current contents of the file
+#Cargar archivo de alumnos
 try:
     with open("alumnos_raw.txt", "r") as file:
         existing_strings = set(file.read().splitlines())  #Cargar lineas en un set
@@ -26,11 +26,9 @@ except FileNotFoundError:
 alumnos_sort = sorted(existing_strings)
 
 
-def pase_lista():
+def pase_lista(textbox):
     # Usar el micrófono como fuente de audio
     with sr.Microphone() as source:
-        textbox.delete("0.0", "end")
-        textbox.insert("0.0", "Escuchando...")
         print("Escuchando...")
         audio = r.record(source, duration=5)
 
@@ -111,35 +109,60 @@ def pase_lista():
 def salir_programa():
     quit()
 
-def cargar_lista():
-    textbox.delete("0.0", "end")
+def cargar_lista(textbox):
     for lista in alumnos_sort:
         textbox.insert("0.0", lista + "\n")
         print("Alumnos Ordenados:", lista)
 
 app = customtkinter.CTk()
 app.title("Speech Recognition App")
-app.geometry("600x500")
+app.geometry("800x600")
 
-sidebar = customtkinter.CTkFrame(master=app, fg_color="#0C2D48")
-sidebar.pack(padx=0, pady=0, fill="y", side="left")
+def delete_pages():
+    for frame in main_frame.winfo_children():
+        frame.destroy()
+
+def ver_lista_page():
+    delete_pages()
+    ver_lista_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#07131d")
+    ver_lista_frame.pack_propagate(True)
+    ver_lista_frame.pack(padx=0, pady=0, fill="both")
+
+    textbox = customtkinter.CTkTextbox(master=ver_lista_frame, fg_color="transparent", text_color="white")
+    textbox.configure(font=('Roboto', 20), height=600)
+    textbox.pack(expand=True, side="right", fill="both")
+    cargar_lista(textbox)
+    
+
+def pasar_lista_page():
+    delete_pages()
+    pasar_lista_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#07131d")
+    pasar_lista_frame.pack_propagate(True)
+    pasar_lista_frame.pack(padx=0, pady=0, fill="both")
+    textbox = customtkinter.CTkTextbox(master=pasar_lista_frame, fg_color="transparent", text_color="white")
+    textbox.configure(font=('Roboto', 20), height=600)
+    textbox.pack(expand=True, side="right", fill="both")
+    textbox.insert("0.0", "Escuchando...")
+    pase_lista(textbox)
+    
+
+sidebar = customtkinter.CTkFrame(master=app, fg_color="#131E29")
+sidebar.pack_propagate(False)
+sidebar.pack(padx=0, pady=0, side=customtkinter.LEFT, fill="y")
+sidebar.configure(width=200)
 #sidebar.pack(padx=20, pady=20, expand=True)
 
-main_frame = customtkinter.CTkFrame(master=app, fg_color="#FFFFFF")
+main_frame = customtkinter.CTkFrame(master=app, fg_color="#07131d")
 main_frame.pack(padx=0, pady=0, expand=True, side="right", fill="both")
 
-button = customtkinter.CTkButton(master=sidebar, text="Ver Lista", corner_radius=5, fg_color="#145DA0", command=cargar_lista)
+button = customtkinter.CTkButton(master=sidebar, text="Ver Lista", corner_radius=5, fg_color="#145DA0", command=ver_lista_page)
 button.pack(padx=20, pady=20)
 
-button2 = customtkinter.CTkButton(master=sidebar, text="Pasar Lista", corner_radius=5, fg_color="#145DA0", command=pase_lista)
+button2 = customtkinter.CTkButton(master=sidebar, text="Pasar Lista", corner_radius=5, fg_color="#145DA0", command=pasar_lista_page)
 button2.pack(padx=20, pady=20)
 
 button3 = customtkinter.CTkButton(master=sidebar, text="Salir", corner_radius=5, fg_color="#145DA0", command=salir_programa)
 button3.pack(padx=20, pady=20)
-
-textbox = customtkinter.CTkTextbox(master=main_frame, fg_color="white", text_color="black")
-textbox.configure(font=('Roboto', 20))
-textbox.pack(expand=True, side="right", fill="both")
 
 app.mainloop()
 
