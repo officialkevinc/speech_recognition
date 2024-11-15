@@ -13,19 +13,23 @@ def clear():
 # Crear un reconocedor
 r = sr.Recognizer()
 
-def cargar_interfaz():
-    app = customtkinter.CTk()
-    app.geometry("400x150")
+i = 0
+opcion = 0
+alumnos = []
+# Read current contents of the file
+try:
+    with open("alumnos_raw.txt", "r") as file:
+        existing_strings = set(file.read().splitlines())  #Cargar lineas en un set
+        no_alumnos = len(existing_strings)  #Cuenta el numero de lineas
+except FileNotFoundError:
+    existing_strings = set()  #Si no existe el archivo, crear un nuevo set
+alumnos_sort = sorted(existing_strings)
 
-    button = customtkinter.CTkButton(app, text="my button", command=cargar_lista)
-    button.pack(padx=20, pady=20)
-
-    app.mainloop()
 
 def pase_lista():
-    
     # Usar el micrófono como fuente de audio
     with sr.Microphone() as source:
+        textbox.insert("0.0", "Escuchando...")
         print("Escuchando...")
         audio = r.record(source, duration=5)
 
@@ -99,54 +103,57 @@ def pase_lista():
     # Guardar el archivo
     wb.save("Lista.xlsx")
 
-i = 0
-opcion = 0
-alumnos = []
-# Read current contents of the file
-try:
-    with open("alumnos_raw.txt", "r") as file:
-        existing_strings = set(file.read().splitlines())  #Cargar lineas en un set
-        no_alumnos = len(existing_strings)  #Cuenta el numero de lineas
-except FileNotFoundError:
-    existing_strings = set()  #Si no existe el archivo, crear un nuevo set
+def salir_programa():
+    quit()
 
 def cargar_lista():
-    clear()
-    print("Cargar Contenido de alumnos_raw.txt")
-    print("Numero de alumnos en el archivo: ", no_alumnos)
-    alumnos_sort = sorted(existing_strings)
     for lista in alumnos_sort:
+        textbox.insert("0.0", lista + "\n")
         print("Alumnos Ordenados:", lista)
 
-cargar_interfaz()
-while opcion != 4:
-    print("Selecciona una opcion\n1.- Crear Lista\n2.- Iniciar Pase de Lista\n3.- Cargar Contenido\n4.- Salir")
-    opcion = int(input("\nSeleccione una opcion: "))
-    if opcion == 1:
-        clear()
-        print("Has seleccionado la opcion 1. Escriba 'stop' para temrinar de agregar alumnos")
-        no_alumnos = int(input("Numero de alumnos que desea agregar: "))
-        for i in range(no_alumnos):
-            iteracion = str(i+1)
-            print("Nombre del alumno " + iteracion + ": ")
-            user_input = str(input())
-            if user_input == 'stop':
-                quit()
-            alumnos.append(user_input)
-        alumnos_sort = sorted(alumnos)
-        print(alumnos_sort)
-        with open("alumnos_nuevo.txt", "w") as file:
-            for string in alumnos_sort:
-                file.write(string + "\n")
-        print("Los alumnos han sido guardados dentro de alumnos_raw.txt")
-    elif opcion == 2:
-        clear()
-        print("Has seleccionado la opcion 2")
-        pase_lista()
-    elif opcion == 3:
-        cargar_lista()
-    elif opcion == 4:
-        quit()
-    else:
-        clear()
-        print("Opcion no valida. Intente de nuevo.\n")
+app = customtkinter.CTk()
+app.title("Speech Recognition App")
+app.geometry("600x500")
+
+sidebar = customtkinter.CTkFrame(master=app, fg_color="#0C2D48")
+sidebar.pack(padx=0, pady=0, fill="y", side="left")
+#sidebar.pack(padx=20, pady=20, expand=True)
+
+main_frame = customtkinter.CTkFrame(master=app, fg_color="#FFFFFF")
+main_frame.pack(padx=0, pady=0, expand=True, side="right", fill="both")
+
+button = customtkinter.CTkButton(master=sidebar, text="Ver Lista", corner_radius=5, fg_color="#145DA0", command=cargar_lista)
+button.pack(padx=20, pady=20)
+
+button2 = customtkinter.CTkButton(master=sidebar, text="Pasar Lista", corner_radius=5, fg_color="#145DA0", command=pase_lista)
+button2.pack(padx=20, pady=20)
+
+button3 = customtkinter.CTkButton(master=sidebar, text="Salir", corner_radius=5, fg_color="#145DA0", command=salir_programa)
+button3.pack(padx=20, pady=20)
+
+textbox = customtkinter.CTkTextbox(master=main_frame, fg_color="white", text_color="black")
+textbox.configure(font=('Roboto', 20))
+textbox.pack(expand=True, side="right", fill="both")
+
+app.mainloop()
+
+#while opcion != 4:
+#    print("Selecciona una opcion\n1.- Crear Lista\n2.- Iniciar Pase de Lista\n3.- Cargar Contenido\n4.- Salir")
+#    opcion = int(input("\nSeleccione una opcion: "))
+#    if opcion == 1:
+#        clear()
+#        print("Has seleccionado la opcion 1. Escriba 'stop' para temrinar de agregar alumnos")
+#        no_alumnos = int(input("Numero de alumnos que desea agregar: "))
+#        for i in range(no_alumnos):
+#            iteracion = str(i+1)
+#            print("Nombre del alumno " + iteracion + ": ")
+#            user_input = str(input())
+#            if user_input == 'stop':
+#                quit()
+#            alumnos.append(user_input)
+#        alumnos_sort = sorted(alumnos)
+#        print(alumnos_sort)
+#        with open("alumnos_nuevo.txt", "w") as file:
+#            for string in alumnos_sort:
+#                file.write(string + "\n")
+#        print("Los alumnos han sido guardados dentro de alumnos_raw.txt")
