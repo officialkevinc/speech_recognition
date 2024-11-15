@@ -6,17 +6,17 @@ from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-# Clear console
+#Clear console
 def clear():
     os.system('cls' if os.name == 'nt' else 'clear')
 
-# Crear un reconocedor
+#Crear un reconocedor
 r = sr.Recognizer()
 
 i = 0
 opcion = 0
 alumnos = []
-# Read current contents of the file
+#Read current contents of the file
 try:
     with open("alumnos_raw.txt", "r") as file:
         existing_strings = set(file.read().splitlines())  #Cargar lineas en un set
