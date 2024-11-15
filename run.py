@@ -29,6 +29,7 @@ alumnos_sort = sorted(existing_strings)
 def pase_lista():
     # Usar el micrófono como fuente de audio
     with sr.Microphone() as source:
+        textbox.delete("0.0", "end")
         textbox.insert("0.0", "Escuchando...")
         print("Escuchando...")
         audio = r.record(source, duration=5)
@@ -60,6 +61,10 @@ def pase_lista():
 
             # Imprimir los resultados
             print("Resultados:", numeros)
+            for j in range(no_alumnos):
+                alumno_actual = str(alumnos_sort[j])
+                numero_asistencia = str(j+1)
+                textbox.insert("0.0", numero_asistencia + ".- " + alumno_actual + " - " + numeros[j] + "\n")
 
         except sr.UnknownValueError:
             print("No se pudo entender el audio. Por favor revisa que su micrófono esté conectado.")
@@ -107,6 +112,7 @@ def salir_programa():
     quit()
 
 def cargar_lista():
+    textbox.delete("0.0", "end")
     for lista in alumnos_sort:
         textbox.insert("0.0", lista + "\n")
         print("Alumnos Ordenados:", lista)
