@@ -157,3 +157,4 @@ app.mainloop()
 #            for string in alumnos_sort:
 #                file.write(string + "\n")
 #        print("Los alumnos han sido guardados dentro de alumnos_raw.txt")
+
