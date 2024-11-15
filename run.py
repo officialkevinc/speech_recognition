@@ -2,9 +2,11 @@ import speech_recognition as sr
 import openpyxl
 import os
 import customtkinter
+import time
 from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.worksheet.table import Table, TableStyleInfo
+from threading import Thread
 
 #Clear console
 def clear():
@@ -25,47 +27,68 @@ except FileNotFoundError:
     existing_strings = set()  #Si no existe el archivo, crear un nuevo set
 alumnos_sort = sorted(existing_strings)
 
+def thread_start(textbox):
+    t = Thread(target=pase_lista, args=(textbox,), daemon=True)
+    t.start()
 
 def pase_lista(textbox):
-    # Usar el micrófono como fuente de audio
-    with sr.Microphone() as source:
-        print("Escuchando...")
-        audio = r.record(source, duration=5)
+    #Números del 1 al 25 en texto y su valor numérico
+    numeros_texto = {
+        "uno": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "siete": 7, "ocho": 8, "nueve": 9,
+        "diez": 10, "once": 11, "doce": 12, "trece": 13, "catorce": 14, "quince": 15, "dieciseis": 16, "diecisiete": 17,
+        "dieciocho": 18, "diecinueve": 19, "veinte": 20, "veintiuno": 21, "veintidos": 22, "veintitres": 23, "veinticuatro": 24, "veinticinco": 25
+    }
 
+    textbox.tag_config('puntual', foreground="#45CE30")
+    textbox.tag_config('warning', foreground="yellow")
+    textbox.tag_config('falta', foreground="red")
+
+    # Arreglo para guardar 'Puntual' o 'Retardo'
+    numeros = ['Retardo'] * 25
+    while True:
         try:
-            # Reconocer el audio usando Google Web Speech API
-            text = r.recognize_google(audio, language="es-ES")
-            print("Oración reconocida: " + text)
+            with sr.Microphone() as source:
+                textbox.insert("0.0", "Escuchando...\n\n")
+                print("Escuchando...")
+                #r.adjust_for_ambient_noise(source)
+                audio = r.record(source, duration=5)
 
-            # Dividir el texto en palabras
-            palabras = text.split()
+                # Reconocer el audio usando Google Web Speech API
+                text = r.recognize_google(audio, language="es-ES")
+                print("Oración reconocida: " + text)
 
-            # Números del 1 al 25 en texto y su valor numérico
-            numeros_texto = {
-                "uno": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "siete": 7, "ocho": 8, "nueve": 9,
-                "diez": 10, "once": 11, "doce": 12, "trece": 13, "catorce": 14, "quince": 15, "dieciseis": 16, "diecisiete": 17,
-                "dieciocho": 18, "diecinueve": 19, "veinte": 20, "veintiuno": 21, "veintidos": 22, "veintitres": 23, "veinticuatro": 24, "veinticinco": 25
-            }
+                # Dividir el texto en palabras
+                palabras = text.split()
 
-            # Arreglo para guardar 'Puntual' o 'Retardo'
-            numeros = ['Retardo'] * 25
+                #Comprobar si el número aparece como palabra o como número
+                for i, numero in enumerate(numeros_texto):
+                    if numero in palabras:
+                        numeros[i] = 'Puntual'
+                    elif str(numeros_texto[numero]) in palabras:
+                        numeros[i] = 'Puntual'
 
-            # Comprobar si el número aparece como palabra o como número
-            for i, numero in enumerate(numeros_texto):
-                if numero in palabras:
-                    numeros[i] = 'Puntual'
-                elif str(numeros_texto[numero]) in palabras:
-                    numeros[i] = 'Puntual'
+                textbox.delete("0.0", "end")
 
-            # Imprimir los resultados
-            print("Resultados:", numeros)
-            for j in range(no_alumnos):
-                alumno_actual = str(alumnos_sort[j])
-                numero_asistencia = str(j+1)
-                textbox.insert("0.0", numero_asistencia + ".- " + alumno_actual + " - " + numeros[j] + "\n")
-
+                #Imprimir los resultados
+                print("Resultados:", numeros)
+                for j in range(no_alumnos):
+                    alumno_actual = str(alumnos_sort[j])
+                    numero_asistencia = str(j+1)
+                    if numeros[j] == 'Puntual':
+                        start_index = textbox.index("end")
+                        textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
+                        textbox.insert("end", "Puntual\n", "puntual")
+                        end_index = textbox.index("end")
+                    else:
+                        start_index = textbox.index("end")
+                        textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
+                        textbox.insert("end", "Retardo\n", "warning")
+                        end_index = textbox.index("end")
+                    #textbox.insert("0.0", numero_asistencia + ".- " + alumno_actual + " - " + numeros[j] + "\n")
         except sr.UnknownValueError:
             print("No se pudo entender el audio. Por favor revisa que su micrófono esté conectado.")
+            textbox.insert("0.0", "No se pudo entender el audio. Por favor revisa que su micrófono esté conectado.\n\n")
+            continue
         except sr.RequestError as e:
             print("No se pudo solicitar resultados; {0}".format(e))
 
@@ -111,7 +134,8 @@ def salir_programa():
 
 def cargar_lista(textbox):
     for lista in alumnos_sort:
-        textbox.insert("0.0", lista + "\n")
+        start_index = textbox.index("end")
+        textbox.insert("end", lista + "\n")
         print("Alumnos Ordenados:", lista)
 
 app = customtkinter.CTk()
@@ -142,8 +166,7 @@ def pasar_lista_page():
     textbox = customtkinter.CTkTextbox(master=pasar_lista_frame, fg_color="transparent", text_color="white")
     textbox.configure(font=('Roboto', 20), height=600)
     textbox.pack(expand=True, side="right", fill="both")
-    textbox.insert("0.0", "Escuchando...")
-    pase_lista(textbox)
+    thread_start(textbox)
     
 
 sidebar = customtkinter.CTkFrame(master=app, fg_color="#131E29")
