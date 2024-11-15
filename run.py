@@ -1,6 +1,7 @@
 import speech_recognition as sr
 import openpyxl
 import os
+import customtkinter
 from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.worksheet.table import Table, TableStyleInfo
@@ -11,6 +12,15 @@ def clear():
 
 # Crear un reconocedor
 r = sr.Recognizer()
+
+def cargar_interfaz():
+    app = customtkinter.CTk()
+    app.geometry("400x150")
+
+    button = customtkinter.CTkButton(app, text="my button", command=cargar_lista)
+    button.pack(padx=20, pady=20)
+
+    app.mainloop()
 
 def pase_lista():
     
@@ -95,11 +105,20 @@ alumnos = []
 # Read current contents of the file
 try:
     with open("alumnos_raw.txt", "r") as file:
-        existing_strings = set(file.read().splitlines())  # Store current lines in a set
-        no_alumnos = len(existing_strings)  # Counts the number of lines
+        existing_strings = set(file.read().splitlines())  #Cargar lineas en un set
+        no_alumnos = len(existing_strings)  #Cuenta el numero de lineas
 except FileNotFoundError:
-    existing_strings = set()  # If file doesn't exist, start with an empty set
+    existing_strings = set()  #Si no existe el archivo, crear un nuevo set
 
+def cargar_lista():
+    clear()
+    print("Cargar Contenido de alumnos_raw.txt")
+    print("Numero de alumnos en el archivo: ", no_alumnos)
+    alumnos_sort = sorted(existing_strings)
+    for lista in alumnos_sort:
+        print("Alumnos Ordenados:", lista)
+
+cargar_interfaz()
 while opcion != 4:
     print("Selecciona una opcion\n1.- Crear Lista\n2.- Iniciar Pase de Lista\n3.- Cargar Contenido\n4.- Salir")
     opcion = int(input("\nSeleccione una opcion: "))
@@ -125,12 +144,7 @@ while opcion != 4:
         print("Has seleccionado la opcion 2")
         pase_lista()
     elif opcion == 3:
-        clear()
-        print("Cargar Contenido de alumnos_raw.txt")
-        print("Numero de alumnos en el archivo: ", no_alumnos)
-        alumnos_sort = sorted(existing_strings)
-        for lista in alumnos_sort:
-            print("Alumnos Ordenados:", lista)
+        cargar_lista()
     elif opcion == 4:
         quit()
     else:
