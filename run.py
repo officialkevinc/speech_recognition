@@ -1,11 +1,15 @@
 import speech_recognition as sr
 import openpyxl
 import os
+<<<<<<< HEAD
 import customtkinter
+=======
+>>>>>>> parent of 00f8404 (Revert "First Commit")
 from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
+<<<<<<< HEAD
 #Clear console
 def clear():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -30,6 +34,19 @@ def pase_lista():
     # Usar el micrófono como fuente de audio
     with sr.Microphone() as source:
         textbox.insert("0.0", "Escuchando...")
+=======
+# Clear console
+def clear():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+# Crear un reconocedor
+r = sr.Recognizer()
+
+def pase_lista():
+    
+    # Usar el micrófono como fuente de audio
+    with sr.Microphone() as source:
+>>>>>>> parent of 00f8404 (Revert "First Commit")
         print("Escuchando...")
         audio = r.record(source, duration=5)
 
@@ -103,6 +120,7 @@ def pase_lista():
     # Guardar el archivo
     wb.save("Lista.xlsx")
 
+<<<<<<< HEAD
 def salir_programa():
     quit()
 
@@ -158,3 +176,52 @@ app.mainloop()
 #                file.write(string + "\n")
 #        print("Los alumnos han sido guardados dentro de alumnos_raw.txt")
 
+=======
+i = 0
+opcion = 0
+alumnos = []
+# Read current contents of the file
+try:
+    with open("alumnos_raw.txt", "r") as file:
+        existing_strings = set(file.read().splitlines())  # Store current lines in a set
+        no_alumnos = len(existing_strings)  # Counts the number of lines
+except FileNotFoundError:
+    existing_strings = set()  # If file doesn't exist, start with an empty set
+
+while opcion != 4:
+    print("Selecciona una opcion\n1.- Crear Lista\n2.- Iniciar Pase de Lista\n3.- Cargar Contenido\n4.- Salir")
+    opcion = int(input("\nSeleccione una opcion: "))
+    if opcion == 1:
+        clear()
+        print("Has seleccionado la opcion 1. Escriba 'stop' para temrinar de agregar alumnos")
+        no_alumnos = int(input("Numero de alumnos que desea agregar: "))
+        for i in range(no_alumnos):
+            iteracion = str(i+1)
+            print("Nombre del alumno " + iteracion + ": ")
+            user_input = str(input())
+            if user_input == 'stop':
+                quit()
+            alumnos.append(user_input)
+        alumnos_sort = sorted(alumnos)
+        print(alumnos_sort)
+        with open("alumnos_nuevo.txt", "w") as file:
+            for string in alumnos_sort:
+                file.write(string + "\n")
+        print("Los alumnos han sido guardados dentro de alumnos_raw.txt")
+    elif opcion == 2:
+        clear()
+        print("Has seleccionado la opcion 2")
+        pase_lista()
+    elif opcion == 3:
+        clear()
+        print("Cargar Contenido de alumnos_raw.txt")
+        print("Numero de alumnos en el archivo: ", no_alumnos)
+        alumnos_sort = sorted(existing_strings)
+        for lista in alumnos_sort:
+            print("Alumnos Ordenados:", lista)
+    elif opcion == 4:
+        quit()
+    else:
+        clear()
+        print("Opcion no valida. Intente de nuevo.\n")
+>>>>>>> parent of 00f8404 (Revert "First Commit")
