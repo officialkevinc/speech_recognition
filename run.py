@@ -10,6 +10,7 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.styles import PatternFill
 from openpyxl.styles import Font
 from threading import Thread
+from playsound3 import playsound as play
 
 #Clear console
 def clear():
@@ -76,7 +77,7 @@ def pase_lista(textbox):
             print("Escuchando...")
             
             with sr.Microphone() as source:
-                
+                play("./assets/sounds/continue.mp3")
                 #r.adjust_for_ambient_noise(source)
                 audio = r.record(source, duration=5)
 
@@ -91,12 +92,10 @@ def pase_lista(textbox):
                 for i, numero in enumerate(numeros_texto):
                     if numero in palabras:
                         numeros[i] = 'Puntual'
-                        engine.say("Number " + alumno_loop + ", Check")
-                        engine.runAndWait()
+                        play("./assets/sounds/puntual.mp3")
                     elif str(numeros_texto[numero]) in palabras:
                         numeros[i] = 'Puntual'
-                        engine.say("Number " + alumno_loop + ", Check")
-                        engine.runAndWait()
+                        play("./assets/sounds/puntual.mp3")
 
                 textbox.delete("0.0", "end")
 
@@ -117,6 +116,7 @@ def pase_lista(textbox):
                         end_index = textbox.index("end")
                     #textbox.insert("0.0", numero_asistencia + ".- " + alumno_actual + " - " + numeros[j] + "\n")
         except sr.UnknownValueError:
+            play("./assets/sounds/missing.mp3")
             print("No se pudo entender el audio. Por favor revisa que su micrófono esté conectado.")
             textbox.insert("end", "No se reconoció asistencia para este número. Pasando al siguiente.\n\n")
             count = count+1
@@ -193,7 +193,7 @@ def retardos(textbox, numeros):
                         end_index = textbox.index("end")
         except sr.UnknownValueError:
             print("No se pudo entender el audio. Por favor revisa que su micrófono esté conectado.")
-            textbox.insert("end", "No se pudo entender el audio. Por favor revise que su micrófono esté conectado.\n\n")
+            textbox.insert("end", "No se reconoció ninguna asistencia. Continuando...\n\n")
             continue
         except sr.RequestError as e:
             print("No se pudo solicitar resultados; {0}".format(e))
