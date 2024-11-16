@@ -64,7 +64,7 @@ def pase_lista(textbox):
 
     #Comienza pase de lista
     #no_alumnos
-    while count<2:
+    while count<2: #no_alumnos
         try:
             alumno_loop = str(count+1)
             print("Alumno actual: " + alumno_loop)
@@ -199,7 +199,7 @@ def retardos(textbox, numeros):
             print("No se pudo solicitar resultados; {0}".format(e))
 
 def countdown(textbox, numeros, alumnos_sort):
-    tiempo_tolerancia=15
+    tiempo_tolerancia=15 #10 * 60
     textbox.delete("0.0", "end")
     textbox.insert("end", "Comienzan a Contar Retardos\n")
     time.sleep(5)
