@@ -384,8 +384,12 @@ main_image_label.place(relx=0.5, rely=0.5, anchor="center")
 main_label = customtkinter.CTkLabel(master=main_frame, text=(hora_actual), text_color="#75003E", font=("Roboto Regular", 40, "bold"))
 main_label.pack(pady=20)
 
+#Nombre
+profesor_label = customtkinter.CTkLabel(master=main_frame, text="Cabrera Tejeda Juan José", text_color="#75003E", font=("Roboto Regular", 25, "bold"))
+profesor_label.place(relx=0.5, rely=0.83, anchor="center")
+
 #Dia actual
-hora_label = customtkinter.CTkLabel(master=main_frame, text=(hora_interfaz), text_color="#404040", font=("Roboto Regular", 40))
+hora_label = customtkinter.CTkLabel(master=main_frame, text=(hora_interfaz), text_color="#404040", font=("Roboto Regular", 20))
 hora_label.pack(pady=20, side="bottom")
 
 buttons_frame = customtkinter.CTkFrame(master=sidebar, fg_color="transparent")
