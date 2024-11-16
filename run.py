@@ -88,8 +88,12 @@ def pase_lista(textbox):
                 for i, numero in enumerate(numeros_texto):
                     if numero in palabras:
                         numeros[i] = 'Puntual'
+                        engine.say("Number " + alumno_loop + ", Check")
+                        engine.runAndWait()
                     elif str(numeros_texto[numero]) in palabras:
                         numeros[i] = 'Puntual'
+                        engine.say("Number " + alumno_loop + ", Check")
+                        engine.runAndWait()
 
                 textbox.delete("0.0", "end")
 
@@ -132,7 +136,7 @@ def retardos(textbox, numeros):
     }
 
     engine = pyttsx3.init()
-    engine.setProperty('rate', 130)
+    engine.setProperty('rate', 110)
 
     #Colores para cada estado de asistencia
     textbox.tag_config('puntual', foreground="#45CE30")
@@ -192,6 +196,8 @@ def retardos(textbox, numeros):
 
 def countdown(textbox, numeros, alumnos_sort):
     tiempo_tolerancia=15
+    textbox.delete("0.0", "end")
+    textbox.insert("end", "Comienzan a Contar Retardos\n")
     while tiempo_tolerancia:
         mins, secs = divmod(tiempo_tolerancia, 60) 
         timer = '{:02d}:{:02d}'.format(mins, secs)
