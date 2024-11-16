@@ -7,6 +7,8 @@ import pyttsx3
 from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.worksheet.table import Table, TableStyleInfo
+from openpyxl.styles import PatternFill
+from openpyxl.styles import Font
 from threading import Thread
 
 #Clear console
@@ -61,7 +63,8 @@ def pase_lista(textbox):
     textbox.tag_config('falta', foreground="red")
 
     #Comienza pase de lista
-    while count<no_alumnos:
+    #no_alumnos
+    while count<2:
         try:
             alumno_loop = str(count+1)
             print("Alumno actual: " + alumno_loop)
@@ -125,6 +128,7 @@ def pase_lista(textbox):
     thread_countdown(textbox, numeros, alumnos_sort)
 
 def retardos(textbox, numeros):
+    time.sleep(3)
     tiempo_tolerancia=15
     #Inicia tiempo de tolerancia para retardos
 
@@ -198,67 +202,84 @@ def countdown(textbox, numeros, alumnos_sort):
     tiempo_tolerancia=15
     textbox.delete("0.0", "end")
     textbox.insert("end", "Comienzan a Contar Retardos\n")
+    time.sleep(5)
     while tiempo_tolerancia:
         mins, secs = divmod(tiempo_tolerancia, 60) 
         timer = '{:02d}:{:02d}'.format(mins, secs)
-        #textbox.delete("0.0", "end")
+        textbox.delete("0.0", "end")
         textbox.insert("end", timer + "\n")
         time.sleep(1) 
         tiempo_tolerancia -= 1
     guardar_lista(textbox, numeros, alumnos_sort)
 
 def guardar_lista(textbox, numeros, alumnos_sort):
+    time.sleep(3)
     textbox.delete("0.0", "end")
     textbox.insert("end", "Guardando Lista\n")
-    # Crear un nuevo libro de trabajo y una hoja
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Datos"
+    
+    current_date = datetime.now().strftime("%d/%m/%Y %H:%M")
 
-    # Fecha y hora actual
-    current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    custom_workbook = openpyxl.load_workbook("./assets/Lista de Asistencia.xlsx")
+    sheet = custom_workbook.active
 
-    # Agregar datos a la hoja
-    column_heading = ["Numero de Lista", "Nombre", current_date]
-    ws.append(column_heading)
-    for k in range(no_alumnos):
-        data = [
-            [k+1, alumnos_sort[k], numeros[k]]
-        ]
-        for row in data:
-            ws.append(row)
+    sheet['B4'] = "ESCUELA SUPERIOR DE INGENIERÍA MECÁNICA Y ELECTRÍCA UNIDAD CULHUACÁN"
+    sheet['B5'] = "NOMBRE DEL DOCENTE: CABRERA TEJEDA JUAN JOSÉ"
+    sheet['C6'] = current_date
 
-    # Definir el rango de la tabla
-    tab = Table(displayName="Tabla1", ref="A1:C26")
+    dia_actual = datetime.now().day
+        
+    columnas = list(range(4, 34))  #D es la columna 4 y AH es la columna 34
 
-    # Agregar estilo a la tabla
-    style = TableStyleInfo(
-        name="TableStyleMedium9",
-        showFirstColumn=False,
-        showLastColumn=False,
-        showRowStripes=True,
-        showColumnStripes=True
-    )
-    tab.tableStyleInfo = style
+    #Imprimir los nombres
+    fila_inicio = 8
+    for i, alumno in enumerate(alumnos_sort):
+        if fila_inicio + i <= 42:  # Para no exceder la fila 42
+            sheet.cell(row=fila_inicio + i, column=3).value = alumno
 
-    # Agregar la tabla a la hoja
-    ws.add_table(tab)
+    # Verificar si la celda de la fila 7 contiene el día actual
+    for col in columnas:
+        celda = sheet.cell(row=7, column=col)
+        if celda.value == dia_actual:
+            # Si se encuentra la columna con el día actual, escribir la información de numeros[]
+            for i, asistencia in enumerate(numeros):
+                if fila_inicio + i <= 42:  # Para no exceder la fila 42
+                    if asistencia == 'Puntual':
+                        shortener = 'P'
+                        sheet.cell(row=fila_inicio + i, column=col).value = shortener
+                        sheet.cell(row=fila_inicio + i, column=col).fill = PatternFill(start_color='019031', end_color='019031', fill_type='solid')
+                        sheet.cell(row=fila_inicio + i, column=col).font = Font(color='FFFFFF')
+                        print(f"Escribiendo en fila {fila_inicio + i}, columna {col}: {shortener}")
+                    elif asistencia == 'Retardo':
+                        shortener = 'R'
+                        sheet.cell(row=fila_inicio + i, column=col).value = shortener
+                        sheet.cell(row=fila_inicio + i, column=col).fill = PatternFill(start_color='F3B431', end_color='F3B431', fill_type='solid')
+                        sheet.cell(row=fila_inicio + i, column=col).font = Font(color='FFFFFF')
+                        print(f"Escribiendo en fila {fila_inicio + i}, columna {col}: {shortener}")
+                    else:
+                        shortener = 'F'
+                        sheet.cell(row=fila_inicio + i, column=col).value = shortener
+                        sheet.cell(row=fila_inicio + i, column=col).fill = PatternFill(start_color='B83227', end_color='B83227', fill_type='solid')
+                        sheet.cell(row=fila_inicio + i, column=col).font = Font(color='FFFFFF')
+                        print(f"Escribiendo en fila {fila_inicio + i}, columna {col}: {shortener}")
+            break  # Salir del bucle una vez que se escribe en la columna correcta
 
-    # Guardar el archivo
-    wb.save("Lista de Asistencia.xlsx")
+    custom_workbook.save("Lista.xlsx")
 
 def salir_programa():
     quit()
 
 def cargar_lista(textbox):
+    counter = 1
     for lista in alumnos_sort:
+        count = str(counter)
         start_index = textbox.index("end")
-        textbox.insert("end", lista + "\n")
+        textbox.insert("end", count + ".- " + lista + "\n")
         print("Alumnos Ordenados:", lista)
+        counter += 1
 
 app = customtkinter.CTk()
 app.title("Speech Recognition App")
-app.geometry("800x600")
+app.geometry("900x600")
 
 def delete_pages():
     for frame in main_frame.winfo_children():
