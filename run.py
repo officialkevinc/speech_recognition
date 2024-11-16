@@ -11,6 +11,7 @@ from openpyxl.styles import PatternFill
 from openpyxl.styles import Font
 from threading import Thread
 from playsound3 import playsound as play
+from PIL import Image, ImageTk, ImageDraw
 
 #Clear console
 def clear():
@@ -56,7 +57,7 @@ def pase_lista(textbox):
     engine.setProperty('rate', 130)
 
     # Arreglo para guardar 'Puntual' o 'Retardo'
-    numeros = ['Falta'] * 25
+    numeros = ['Falta'] * no_alumnos
     
     #Colores para cada estado de asistencia
     textbox.tag_config('puntual', foreground="#45CE30")
@@ -201,15 +202,27 @@ def retardos(textbox, numeros):
 def countdown(textbox, numeros, alumnos_sort):
     tiempo_tolerancia=15 #10 * 60
     textbox.delete("0.0", "end")
+    textbox.configure(font=('Roboto', 30), width=700, height=600)
     textbox.insert("end", "Comienzan a Contar Retardos\n")
     time.sleep(5)
+    countdown_label = None
     while tiempo_tolerancia:
-        mins, secs = divmod(tiempo_tolerancia, 60) 
+        mins, secs = divmod(tiempo_tolerancia, 60)
+        timer_tolerancia = secs
         timer = '{:02d}:{:02d}'.format(mins, secs)
-        textbox.delete("0.0", "end")
-        textbox.insert("end", timer + "\n")
+        if timer_tolerancia <= (60):
+            time_running_out = "red"
+        else:
+            time_running_out = "#45CE30"
+        if countdown_label:  # Si ya existe, destruir el label previo antes de crear uno nuevo
+            countdown_label.destroy()
+        countdown_label = customtkinter.CTkLabel(master=main_frame, text=timer, text_color=time_running_out, font=("Roboto Regular", 80, "bold"))
+        countdown_label.place(relx=0.5, rely=0.5, anchor="center")
         time.sleep(1) 
         tiempo_tolerancia -= 1
+    if countdown_label:  # Si ya existe, destruir el label previo antes de crear uno nuevo
+            countdown_label.destroy()
+    time.sleep(5)
     guardar_lista(textbox, numeros, alumnos_sort)
 
 def guardar_lista(textbox, numeros, alumnos_sort):
@@ -287,43 +300,131 @@ def delete_pages():
 
 def ver_lista_page():
     delete_pages()
-    ver_lista_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#07131d")
+    ver_lista_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFFFFF")
     ver_lista_frame.pack_propagate(True)
     ver_lista_frame.pack(padx=0, pady=0, fill="both")
 
-    textbox = customtkinter.CTkTextbox(master=ver_lista_frame, fg_color="transparent", text_color="white")
-    textbox.configure(font=('Roboto', 20), height=600)
+    textbox = customtkinter.CTkTextbox(master=ver_lista_frame, fg_color="transparent", text_color="#404040")
+    textbox.configure(font=('Roboto', 20), height=400)
     textbox.pack(expand=True, side="right", fill="both")
+
+    button_agregar_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
+    button_agregar_frame.pack(expand=True, side="bottom", fill="both")
     cargar_lista(textbox)
     
 
 def pasar_lista_page():
     delete_pages()
-    pasar_lista_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#07131d")
+    pasar_lista_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFFFFF")
     pasar_lista_frame.pack_propagate(True)
     pasar_lista_frame.pack(padx=0, pady=0, fill="both")
-    textbox = customtkinter.CTkTextbox(master=pasar_lista_frame, fg_color="transparent", text_color="white")
+
+    textbox = customtkinter.CTkTextbox(master=pasar_lista_frame, fg_color="transparent", text_color="#404040")
     textbox.configure(font=('Roboto', 20), height=600)
     textbox.pack(expand=True, side="right", fill="both")
     thread_start(textbox)
-    
 
-sidebar = customtkinter.CTkFrame(master=app, fg_color="#131E29")
+hora_interfaz = datetime.now().strftime("%d/%m/%Y")
+hora_actual = current_date = datetime.now().hour
+
+if hora_actual >= 20:
+    hora_actual = "Buenas noches, profesor"
+elif hora_actual >= 12:
+    hora_actual = "Buenas tardes, profesor"
+else:
+    hora_actual = "Buenos días, profesor"
+
+
+ver_lista_icon = customtkinter.CTkImage(light_image=Image.open("./assets/icons/ver_lista.png"), size=(30, 30))
+pasar_lista_icon = customtkinter.CTkImage(light_image=Image.open("./assets/icons/pasar_lista.png"), size=(30, 30))
+salir_icon = customtkinter.CTkImage(light_image=Image.open("./assets/icons/salir.png"), size=(30, 30))
+
+logo_image = Image.open("./assets/images/logo.png")
+logo_image = logo_image.resize((80, 120))
+logo_image_tk = ImageTk.PhotoImage(logo_image)
+
+main_image = Image.open("./assets/images/main.png")
+main_image = main_image.resize((300, 300))  #Tamaño de la imagen
+main_image_tk = ImageTk.PhotoImage(main_image)
+
+#main_bg = Image.open("./assets/images/bg_main.png")
+#main_bg = main_bg.resize((300, 300))  #Tamaño de la imagen
+#main_bg_tk = ImageTk.PhotoImage(main_bg)
+
+sidebar = customtkinter.CTkFrame(master=app, fg_color="#75003E")
 sidebar.pack_propagate(False)
-sidebar.pack(padx=0, pady=0, side=customtkinter.LEFT, fill="y")
+sidebar.pack(padx=0, pady=0, side="left", fill="y", expand=False)
 sidebar.configure(width=200)
-#sidebar.pack(padx=20, pady=20, expand=True)
 
-main_frame = customtkinter.CTkFrame(master=app, fg_color="#07131d")
+logo_label = customtkinter.CTkLabel(master=sidebar, image=logo_image_tk, text="")
+logo_label.pack(pady=(10, 20))
+
+main_frame = customtkinter.CTkFrame(master=app, fg_color="#FFFFFF")
 main_frame.pack(padx=0, pady=0, expand=True, side="right", fill="both")
 
-button = customtkinter.CTkButton(master=sidebar, text="Ver Lista", corner_radius=5, fg_color="#145DA0", command=ver_lista_page)
+#gradient_frame = customtkinter.CTkFrame(master=main_frame, width=900, height=600)
+#gradient_frame.pack_propagate(False)
+#gradient_frame.pack()
+
+# Crear el degradado
+#gradient_image = create_gradient(900, 600, (117, 0, 72), (255, 255, 255))  # De morado a blanco
+#gradient_photo = ImageTk.PhotoImage(gradient_image)
+
+# Colocar el degradado en un Label para mostrarlo en el Frame
+#label = customtkinter.CTkLabel(gradient_frame, image=gradient_photo, text="")
+#label.place(x=0, y=0, relwidth=1, relheight=1)
+
+main_image_label = customtkinter.CTkLabel(master=main_frame, image=main_image_tk, text="")
+main_image_label.place(relx=0.5, rely=0.5, anchor="center")
+
+#Saludo
+main_label = customtkinter.CTkLabel(master=main_frame, text=(hora_actual), text_color="#75003E", font=("Roboto Regular", 40, "bold"))
+main_label.pack(pady=20)
+
+#Dia actual
+hora_label = customtkinter.CTkLabel(master=main_frame, text=(hora_interfaz), text_color="#404040", font=("Roboto Regular", 40))
+hora_label.pack(pady=20, side="bottom")
+
+buttons_frame = customtkinter.CTkFrame(master=sidebar, fg_color="transparent")
+buttons_frame.pack(expand=True, side="top", fill="y")
+
+button = customtkinter.CTkButton(master=buttons_frame,
+                                 image=ver_lista_icon,
+                                 compound="left",
+                                 text="Ver Lista",
+                                 text_color="#404040",
+                                 font=("Roboto Regular", 16, "bold"),
+                                 corner_radius=5,
+                                 fg_color="#FFFFFF",
+                                 command=ver_lista_page,
+                                 width=160,
+                                 height=40)
 button.pack(padx=20, pady=20)
 
-button2 = customtkinter.CTkButton(master=sidebar, text="Pasar Lista", corner_radius=5, fg_color="#145DA0", command=pasar_lista_page)
+button2 = customtkinter.CTkButton(master=buttons_frame,
+                                  image=pasar_lista_icon,
+                                  compound="left",
+                                  text="Pasar Lista",
+                                  text_color="#404040",
+                                  font=("Roboto Regular", 16, "bold"),
+                                  corner_radius=5,
+                                  fg_color="#FFFFFF",
+                                  width=160,
+                                  height=40,
+                                  command=pasar_lista_page)
 button2.pack(padx=20, pady=20)
 
-button3 = customtkinter.CTkButton(master=sidebar, text="Salir", corner_radius=5, fg_color="#145DA0", command=salir_programa)
+button3 = customtkinter.CTkButton(master=buttons_frame,
+                                  image=salir_icon,
+                                  compound="left",
+                                  text="Salir",
+                                  text_color="#404040",
+                                  font=("Roboto Regular", 16, "bold"),
+                                  corner_radius=5,
+                                  fg_color="#FFFFFF",
+                                  width=160,
+                                  height=40,
+                                  command=salir_programa)
 button3.pack(padx=20, pady=20)
 
 app.mainloop()
