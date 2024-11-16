@@ -61,7 +61,7 @@ def pase_lista(textbox):
     
     #Colores para cada estado de asistencia
     textbox.tag_config('puntual', foreground="#45CE30")
-    textbox.tag_config('warning', foreground="yellow")
+    textbox.tag_config('warning', foreground="#F3B63A")
     textbox.tag_config('falta', foreground="red")
 
     #Comienza pase de lista
@@ -118,7 +118,7 @@ def pase_lista(textbox):
                     #textbox.insert("0.0", numero_asistencia + ".- " + alumno_actual + " - " + numeros[j] + "\n")
         except sr.UnknownValueError:
             play("./assets/sounds/missing.mp3")
-            print("No se pudo entender el audio. Por favor revisa que su micrófono esté conectado.")
+            print("No se pudo entender el audio. Por favor revise que su micrófono esté conectado.")
             textbox.insert("end", "No se reconoció asistencia para este número. Pasando al siguiente.\n\n")
             count = count+1
             continue
@@ -145,7 +145,7 @@ def retardos(textbox, numeros):
 
     #Colores para cada estado de asistencia
     textbox.tag_config('puntual', foreground="#45CE30")
-    textbox.tag_config('warning', foreground="yellow")
+    textbox.tag_config('warning', foreground="#F3B63A")
     textbox.tag_config('falta', foreground="red")
 
     while True:
@@ -166,8 +166,10 @@ def retardos(textbox, numeros):
                 for i, numero in enumerate(numeros_texto):
                     if numero in palabras:
                         numeros[i] = 'Retardo'
+                        play("./assets/sounds/puntual.mp3")
                     elif str(numeros_texto[numero]) in palabras:
                         numeros[i] = 'Retardo'
+                        play("./assets/sounds/puntual.mp3")
 
                 textbox.delete("0.0", "end")
 
@@ -193,14 +195,15 @@ def retardos(textbox, numeros):
                         textbox.insert("end", "Falta\n", "falta")
                         end_index = textbox.index("end")
         except sr.UnknownValueError:
-            print("No se pudo entender el audio. Por favor revisa que su micrófono esté conectado.")
+            print("No se pudo entender el audio. Por favor revise que su micrófono esté conectado.")
+            textbox.delete("0.0", "end")
             textbox.insert("end", "No se reconoció ninguna asistencia. Continuando...\n\n")
             continue
         except sr.RequestError as e:
             print("No se pudo solicitar resultados; {0}".format(e))
 
 def countdown(textbox, numeros, alumnos_sort):
-    tiempo_tolerancia=15 #10 * 60
+    tiempo_tolerancia=2 * 60#10 * 60
     textbox.delete("0.0", "end")
     textbox.configure(font=('Roboto', 30), width=700, height=600)
     textbox.insert("end", "Comienzan a Contar Retardos\n")
@@ -208,9 +211,9 @@ def countdown(textbox, numeros, alumnos_sort):
     countdown_label = None
     while tiempo_tolerancia:
         mins, secs = divmod(tiempo_tolerancia, 60)
-        timer_tolerancia = secs
+        timer_tolerancia = mins
         timer = '{:02d}:{:02d}'.format(mins, secs)
-        if timer_tolerancia <= (60):
+        if timer_tolerancia <= (1):
             time_running_out = "red"
         else:
             time_running_out = "#45CE30"
