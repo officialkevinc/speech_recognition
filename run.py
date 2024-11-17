@@ -44,6 +44,21 @@ def thread_countdown(textbox, numeros, alumnos_sort):
     t = Thread(target=countdown, args=(textbox, numeros, alumnos_sort), daemon=True)
     t.start()
 
+def thread_hora_actual():
+    t = Thread(target=tiempo_actual, daemon=True)
+    t.start()
+
+def tiempo_actual():
+    hora_actual_label = None
+    while True:
+        hora = datetime.now().strftime("%H:%M:%S")
+        if hora_actual_label:
+            hora_actual_label.destroy()
+        hora_actual_label = customtkinter.CTkLabel(master=main_frame_top_bar, text=hora, text_color="#75003E", font=("Roboto Regular", 16, "bold"))
+        hora_actual_label.pack(padx=10, pady=3, side="right", expand=True)
+        time.sleep(1)
+
+
 def pase_lista(textbox):
     #Números del 1 al 25 en texto y su valor numérico
     numeros_texto = {
@@ -203,7 +218,7 @@ def retardos(textbox, numeros):
             print("No se pudo solicitar resultados; {0}".format(e))
 
 def countdown(textbox, numeros, alumnos_sort):
-    tiempo_tolerancia=2 * 60#10 * 60
+    tiempo_tolerancia=15#10 * 60
     textbox.delete("0.0", "end")
     textbox.configure(font=('Roboto', 30), width=700, height=600)
     textbox.insert("end", "Comienzan a Contar Retardos\n")
@@ -278,8 +293,8 @@ def guardar_lista(textbox, numeros, alumnos_sort):
                         sheet.cell(row=fila_inicio + i, column=col).font = Font(color='FFFFFF')
                         print(f"Escribiendo en fila {fila_inicio + i}, columna {col}: {shortener}")
             break  # Salir del bucle una vez que se escribe en la columna correcta
-
-    custom_workbook.save("Lista.xlsx")
+    current_date = datetime.now().strftime("%d-%m-%Y %H-%M")
+    custom_workbook.save(f"Lista {current_date}.xlsx")
 
 def salir_programa():
     quit()
@@ -311,8 +326,8 @@ def ver_lista_page():
     textbox.configure(font=('Roboto', 20), height=400)
     textbox.pack(expand=True, side="right", fill="both")
 
-    button_agregar_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
-    button_agregar_frame.pack(expand=True, side="bottom", fill="both")
+    #button_agregar_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
+    #button_agregar_frame.pack(expand=True, side="bottom", fill="both")
     cargar_lista(textbox)
     
 
@@ -327,7 +342,8 @@ def pasar_lista_page():
     textbox.pack(expand=True, side="right", fill="both")
     thread_start(textbox)
 
-hora_interfaz = datetime.now().strftime("%d/%m/%Y")
+dia_interfaz = datetime.now().strftime("%d/%m/%Y")
+hora_interfaz = datetime.now().strftime("%H:%M:%S")
 hora_actual = current_date = datetime.now().hour
 
 if hora_actual >= 20:
@@ -345,6 +361,10 @@ salir_icon = customtkinter.CTkImage(light_image=Image.open("./assets/icons/salir
 logo_image = Image.open("./assets/images/logo.png")
 logo_image = logo_image.resize((80, 120))
 logo_image_tk = ImageTk.PhotoImage(logo_image)
+
+logo_esime = Image.open("./assets/images/esime.png")
+logo_esime = logo_esime.resize((50, 50))
+logo_esime_tk = ImageTk.PhotoImage(logo_esime)
 
 main_image = Image.open("./assets/images/main.png")
 main_image = main_image.resize((300, 300))  #Tamaño de la imagen
@@ -365,18 +385,23 @@ logo_label.pack(pady=(10, 20))
 main_frame = customtkinter.CTkFrame(master=app, fg_color="#FFFFFF")
 main_frame.pack(padx=0, pady=0, expand=True, side="right", fill="both")
 
-#gradient_frame = customtkinter.CTkFrame(master=main_frame, width=900, height=600)
-#gradient_frame.pack_propagate(False)
-#gradient_frame.pack()
+main_frame_top_bar = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
+main_frame_top_bar.pack_propagate(False)
+main_frame_top_bar.pack(padx=0, pady=0, expand=False, side="top", fill="x")
+main_frame_top_bar.configure(height=60)
 
-# Crear el degradado
-#gradient_image = create_gradient(900, 600, (117, 0, 72), (255, 255, 255))  # De morado a blanco
-#gradient_photo = ImageTk.PhotoImage(gradient_image)
+#Dia actual
+hora_label = customtkinter.CTkLabel(master=main_frame_top_bar, text=(dia_interfaz), text_color="#75003E", font=("Roboto Regular", 16, "bold"))
+hora_label.pack(padx=10, pady=3, side="left", expand=True)
 
-# Colocar el degradado en un Label para mostrarlo en el Frame
-#label = customtkinter.CTkLabel(gradient_frame, image=gradient_photo, text="")
-#label.place(x=0, y=0, relwidth=1, relheight=1)
+#Hora actual
+thread_hora_actual()
 
+#Logo Esime
+logo_esime_label = customtkinter.CTkLabel(master=main_frame_top_bar, image=logo_esime_tk, text="")
+logo_esime_label.pack(padx=10, pady=3, side="left", expand=True)
+
+#Main image centered
 main_image_label = customtkinter.CTkLabel(master=main_frame, image=main_image_tk, text="")
 main_image_label.place(relx=0.5, rely=0.5, anchor="center")
 
@@ -385,12 +410,8 @@ main_label = customtkinter.CTkLabel(master=main_frame, text=(hora_actual), text_
 main_label.pack(pady=20)
 
 #Nombre
-profesor_label = customtkinter.CTkLabel(master=main_frame, text="Cabrera Tejeda Juan José", text_color="#75003E", font=("Roboto Regular", 25, "bold"))
+profesor_label = customtkinter.CTkLabel(master=main_frame, text="Cabrera Tejeda Juan José", text_color="#75003E", font=("Roboto Regular", 32))
 profesor_label.place(relx=0.5, rely=0.83, anchor="center")
-
-#Dia actual
-hora_label = customtkinter.CTkLabel(master=main_frame, text=(hora_interfaz), text_color="#404040", font=("Roboto Regular", 20))
-hora_label.pack(pady=20, side="bottom")
 
 buttons_frame = customtkinter.CTkFrame(master=sidebar, fg_color="transparent")
 buttons_frame.pack(expand=True, side="top", fill="y")
