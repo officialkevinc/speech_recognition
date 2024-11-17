@@ -457,25 +457,3 @@ button3.pack(padx=20, pady=20)
 
 app.mainloop()
 
-
-#while opcion != 4:
-#    print("Selecciona una opcion\n1.- Crear Lista\n2.- Iniciar Pase de Lista\n3.- Cargar Contenido\n4.- Salir")
-#    opcion = int(input("\nSeleccione una opcion: "))
-#    if opcion == 1:
-#        clear()
-#        print("Has seleccionado la opcion 1. Escriba 'stop' para temrinar de agregar alumnos")
-#        no_alumnos = int(input("Numero de alumnos que desea agregar: "))
-#        for i in range(no_alumnos):
-#            iteracion = str(i+1)
-#            print("Nombre del alumno " + iteracion + ": ")
-#            user_input = str(input())
-#            if user_input == 'stop':
-#                quit()
-#            alumnos.append(user_input)
-#        alumnos_sort = sorted(alumnos)
-#        print(alumnos_sort)
-#        with open("alumnos_nuevo.txt", "w") as file:
-#            for string in alumnos_sort:
-#                file.write(string + "\n")
-#        print("Los alumnos han sido guardados dentro de alumnos_raw.txt")
-
