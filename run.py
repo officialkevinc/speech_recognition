@@ -69,7 +69,6 @@ def tiempo_actual():
 
 def open_mic_recognizer():
     recognized_label = None
-
     #Números del 1 al 25 en texto y su valor numérico
     numeros_texto = {
         "uno": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "siete": 7, "ocho": 8, "nueve": 9,
@@ -125,65 +124,66 @@ def pase_lista(textbox):
 
     #Comienza pase de lista
     #no_alumnos
-    while count<2: #no_alumnos
-        try:
-            alumno_loop = str(count+1)
-            print("Alumno actual: " + alumno_loop)
+    #Start audio stream
+    mic = pyaudio.PyAudio()
+    stream = mic.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
+    stream.start_stream()
+    print("Listening...")
+    
+    while True:
+        data = stream.read(4000, exception_on_overflow=False)
+        #textbox.delete("0.0", "end")
+        
+        if recognizer.AcceptWaveform(data):
+            result = recognizer.FinalResult()
+            palabras = str(result)
+            cleaned_str = re.sub('["{}:"]|text', '', palabras)
+            cleaned_str = ' '.join(cleaned_str.split())
+            print("Oración Reconocida: ", cleaned_str)
 
-            engine.say("Number " + alumno_loop)
-            engine.runAndWait()
-
-            textbox.insert("end", "Escuchando a Numero " + alumno_loop + "...\n\n")
-            print("Escuchando...")
-            
-            with sr.Microphone() as source:
-                play("./assets/sounds/continue.mp3")
-                #r.adjust_for_ambient_noise(source)
-                audio = r.record(source, duration=5)
-
-                # Reconocer el audio usando Google Web Speech API
-                text = r.recognize_google(audio, language="es-ES")
-                print("Oración reconocida: " + text)
-
-                # Dividir el texto en palabras
-                palabras = text.split()
-
-                #Comprobar si el número aparece como palabra o como número
-                for i, numero in enumerate(numeros_texto):
-                    if numero in palabras:
-                        numeros[i] = 'Puntual'
-                        play("./assets/sounds/puntual.mp3")
-                    elif str(numeros_texto[numero]) in palabras:
-                        numeros[i] = 'Puntual'
-                        play("./assets/sounds/puntual.mp3")
-
-                textbox.delete("0.0", "end")
-
-                #Imprimir los resultados
-                print("Resultados:", numeros)
-                for j in range(no_alumnos):
-                    alumno_actual = str(alumnos_sort[j])
-                    numero_asistencia = str(j+1)
-                    if numeros[j] == 'Puntual':
-                        start_index = textbox.index("end")
-                        textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
-                        textbox.insert("end", "Puntual\n", "puntual")
-                        end_index = textbox.index("end")
-                    else:
-                        start_index = textbox.index("end")
-                        textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
-                        textbox.insert("end", "Retardo\n", "warning")
-                        end_index = textbox.index("end")
+            #Comprobar si el número aparece como palabra o como número
+            for i, numero in enumerate(numeros_texto):
+                if numero in cleaned_str:
+                    textbox.delete("0.0", "end")
+                    textbox.insert("end", "Registrando Asistencia...")
+                    numeros[i] = 'Puntual'
+                    play("./assets/sounds/puntual.mp3")
+                elif str(numeros_texto[numero]) in cleaned_str:
+                    textbox.delete("0.0", "end")
+                    textbox.insert("end", "Registrando Asistencia...")
+                    numeros[i] = 'Puntual'
+                    play("./assets/sounds/puntual.mp3")
+                elif str(numeros_texto[numero]) not in numeros[i]:
+                    print("Aquí se sale del index")
+                    continue
+                elif numero not in numeros[i]:
+                    print("Aquí se sale del index")
+                    continue
+            #textbox.delete("0.0", "end")
+            #Imprimir los resultados
+            print("Resultados:", numeros)
+            textbox.delete("0.0", "end")
+            for j in range(no_alumnos):
+                alumno_actual = str(alumnos_sort[j])
+                numero_asistencia = str(j+1)
+                if numeros[j] == 'Puntual':
+                    start_index = textbox.index("end")
+                    textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
+                    textbox.insert("end", "Puntual\n", "puntual")
+                    end_index = textbox.index("end")
+                else:
+                    start_index = textbox.index("end")
+                    textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
+                    textbox.insert("end", "Retardo\n", "warning")
+                    end_index = textbox.index("end")
+            textbox.insert("end", "Escuchando...", "puntual")
                     #textbox.insert("0.0", numero_asistencia + ".- " + alumno_actual + " - " + numeros[j] + "\n")
-        except sr.UnknownValueError:
-            play("./assets/sounds/missing.mp3")
-            print("No se pudo entender el audio. Por favor revise que su micrófono esté conectado.")
-            textbox.insert("end", "No se reconoció asistencia para este número. Pasando al siguiente.\n\n")
-            count = count+1
+                    #textbox.delete("0.0", "end")
+        else:
+            result = recognizer.PartialResult()
             continue
-        except sr.RequestError as e:
-            print("No se pudo solicitar resultados; {0}".format(e))
-        count = count+1
+        
+        
     thread_retardos(textbox, numeros)
     thread_countdown(textbox, numeros, alumnos_sort)
 
