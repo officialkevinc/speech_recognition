@@ -12,6 +12,9 @@ from openpyxl.styles import Font
 from threading import Thread
 from playsound3 import playsound as play
 from PIL import Image, ImageTk, ImageDraw
+import pyaudio
+from vosk import Model, KaldiRecognizer
+import re
 
 #Clear console
 def clear():
@@ -19,6 +22,8 @@ def clear():
 
 #Crear un reconocedor
 r = sr.Recognizer()
+model = Model("model-es-small")
+recognizer = KaldiRecognizer(model, 16000)
 
 i = 0
 alumnos = []
@@ -48,6 +53,10 @@ def thread_hora_actual():
     t = Thread(target=tiempo_actual, daemon=True)
     t.start()
 
+def thread_start_open_mic():
+    t = Thread(target=open_mic_recognizer, daemon=True)
+    t.start()
+
 def tiempo_actual():
     hora_actual_label = None
     while True:
@@ -58,6 +67,41 @@ def tiempo_actual():
         hora_actual_label.pack(padx=10, pady=3, side="right", expand=True)
         time.sleep(1)
 
+def open_mic_recognizer():
+    recognized_label = None
+
+    #Números del 1 al 25 en texto y su valor numérico
+    numeros_texto = {
+        "uno": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "siete": 7, "ocho": 8, "nueve": 9,
+        "diez": 10, "once": 11, "doce": 12, "trece": 13, "catorce": 14, "quince": 15, "dieciseis": 16, "diecisiete": 17,
+        "dieciocho": 18, "diecinueve": 19, "veinte": 20, "veintiuno": 21, "veintidos": 22, "veintitres": 23, "veinticuatro": 24, "veinticinco": 25
+    }
+
+    #Start audio stream
+    mic = pyaudio.PyAudio()
+    stream = mic.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
+    stream.start_stream()
+    print("Listening...")
+    
+    while True:
+        data = stream.read(4000)
+        if recognizer.AcceptWaveform(data):
+            result = recognizer.FinalResult()
+            palabras = str(result)
+            cleaned_str = re.sub('["{}:"]|text', '', palabras)
+            cleaned_str = ' '.join(cleaned_str.split())
+            print("Oración Reconocida: ", cleaned_str)
+            for i, numero in enumerate(numeros_texto):
+                if numero in cleaned_str:
+                    play("./assets/sounds/puntual.mp3")
+                    print("Palabra reconocida del arreglo: ", numero)
+                    if recognized_label:
+                            recognized_label.destroy()
+                    recognized_label = customtkinter.CTkLabel(master=main_frame, text=numero, text_color="green", font=("Roboto Regular", 20, "bold"))
+                    recognized_label.place(relx=0.5, rely=0.5, anchor="center")
+
+def switch_event():
+    print("switch toggled, current value:", switch_var.get())
 
 def pase_lista(textbox):
     #Números del 1 al 25 en texto y su valor numérico
@@ -301,6 +345,9 @@ def salir_programa():
 
 def cargar_lista(textbox):
     counter = 1
+    countdown_label = None
+    if countdown_label:  # Si ya existe, destruir el label previo antes de crear uno nuevo
+            countdown_label.destroy()
     for lista in alumnos_sort:
         count = str(counter)
         start_index = textbox.index("end")
@@ -342,6 +389,14 @@ def pasar_lista_page():
     textbox.pack(expand=True, side="right", fill="both")
     thread_start(textbox)
 
+def open_mic_page():
+    delete_pages()
+    open_mic_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFFFFF")
+    open_mic_frame.pack_propagate(True)
+    open_mic_frame.pack(padx=0, pady=0, fill="both")
+    thread_start_open_mic()
+
+#Dia, hora y tiempo del dia
 dia_interfaz = datetime.now().strftime("%d/%m/%Y")
 hora_interfaz = datetime.now().strftime("%H:%M:%S")
 hora_actual = current_date = datetime.now().hour
@@ -413,6 +468,11 @@ main_label.pack(pady=20)
 profesor_label = customtkinter.CTkLabel(master=main_frame, text="Cabrera Tejeda Juan José", text_color="#75003E", font=("Roboto Regular", 32))
 profesor_label.place(relx=0.5, rely=0.83, anchor="center")
 
+switch_var = customtkinter.StringVar(value="on")
+switch = customtkinter.CTkSwitch(master=main_frame, text="", command=switch_event,
+                                 variable=switch_var, onvalue="Online", offvalue="Offline")
+switch.pack()
+
 buttons_frame = customtkinter.CTkFrame(master=sidebar, fg_color="transparent")
 buttons_frame.pack(expand=True, side="top", fill="y")
 
@@ -441,6 +501,19 @@ button2 = customtkinter.CTkButton(master=buttons_frame,
                                   height=40,
                                   command=pasar_lista_page)
 button2.pack(padx=20, pady=20)
+
+button_open_mic = customtkinter.CTkButton(master=buttons_frame,
+                                  image=salir_icon,
+                                  compound="left",
+                                  text="Libre",
+                                  text_color="#404040",
+                                  font=("Roboto Regular", 16, "bold"),
+                                  corner_radius=5,
+                                  fg_color="#FFFFFF",
+                                  width=160,
+                                  height=40,
+                                  command=open_mic_page)
+button_open_mic.pack(padx=20, pady=20)
 
 button3 = customtkinter.CTkButton(master=buttons_frame,
                                   image=salir_icon,
