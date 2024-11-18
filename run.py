@@ -178,7 +178,8 @@ def retardos(textbox, numeros, button_continuar):
             result = recognizer.FinalResult()
             palabras = str(result)
             cleaned_str = re.sub('["{}:"]|text', '', palabras)
-            cleaned_str = ' '.join(cleaned_str.split())
+            #cleaned_str = ' '.join(cleaned_str.split())
+            cleaned_str = cleaned_str.split()
             print("Oración Reconocida: ", cleaned_str)
 
             #Comprobar si el número aparece como palabra o como número
