@@ -100,12 +100,16 @@ def pase_lista(textbox, button_continuar):
             result = recognizer.FinalResult()
             palabras = str(result)
             cleaned_str = re.sub('["{}:"]|text', '', palabras)
-            cleaned_str = ' '.join(cleaned_str.split())
+            #cleaned_str = ' '.join(cleaned_str.split())
+            cleaned_str = cleaned_str.split()
             print("Oración Reconocida: ", cleaned_str)
 
             #Comprobar si el número aparece como palabra o como número
             for i, numero in enumerate(numeros_texto):
                 if numero in cleaned_str or str(numeros_texto[numero]) in cleaned_str:
+                    print(numero)
+                    print(cleaned_str)
+                    print(str(numeros_texto[numero]))
                     textbox.delete("0.0", "end")
                     textbox.insert("end", "Registrando Asistencia...")
                     if i < len(numeros): 
