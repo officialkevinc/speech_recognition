@@ -57,10 +57,6 @@ def thread_hora_actual():
     t = Thread(target=tiempo_actual, daemon=True)
     t.start()
 
-def thread_start_open_mic():
-    t = Thread(target=open_mic_recognizer, daemon=True)
-    t.start()
-
 def tiempo_actual():
     hora_actual_label = None
     while True:
@@ -368,13 +364,6 @@ def pasar_lista_page():
                                             height=40)
     button_continuar.place(relx=0.35, rely=0.3)
     thread_start(textbox, button_continuar)
-
-def open_mic_page():
-    delete_pages()
-    open_mic_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFFFFF")
-    open_mic_frame.pack_propagate(True)
-    open_mic_frame.pack(padx=0, pady=0, fill="both")
-    thread_start_open_mic()
 
 #Dia, hora y tiempo del dia
 dia_interfaz = datetime.now().strftime("%d/%m/%Y")
