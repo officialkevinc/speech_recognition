@@ -4,6 +4,7 @@ import os
 import customtkinter
 import time
 import pyttsx3
+import threading
 from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.worksheet.table import Table, TableStyleInfo
@@ -37,16 +38,19 @@ except FileNotFoundError:
     existing_strings = set()  #Si no existe el archivo, crear un nuevo set
 alumnos_sort = sorted(existing_strings)
 
-def thread_start(textbox):
-    t = Thread(target=pase_lista, args=(textbox,), daemon=True)
+exit_event = threading.Event()
+exit_event_retardos = threading.Event()
+
+def thread_start(textbox, button_continuar):
+    t = Thread(target=pase_lista, args=(textbox, button_continuar,), daemon=True)
     t.start()
 
-def thread_retardos(textbox, numeros):
-    t = Thread(target=retardos, args=(textbox, numeros,), daemon=True)
+def thread_retardos(textbox, numeros, button_continuar):
+    t = Thread(target=retardos, args=(textbox, numeros, button_continuar,), daemon=True)
     t.start()
 
 def thread_countdown(textbox, numeros, alumnos_sort):
-    t = Thread(target=countdown, args=(textbox, numeros, alumnos_sort), daemon=True)
+    t = Thread(target=countdown, args=(textbox, numeros, alumnos_sort,), daemon=True)
     t.start()
 
 def thread_hora_actual():
@@ -67,52 +71,13 @@ def tiempo_actual():
         hora_actual_label.pack(padx=10, pady=3, side="right", expand=True)
         time.sleep(1)
 
-def open_mic_recognizer():
-    recognized_label = None
+def pase_lista(textbox, button_continuar):
     #Números del 1 al 25 en texto y su valor numérico
     numeros_texto = {
         "uno": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "siete": 7, "ocho": 8, "nueve": 9,
         "diez": 10, "once": 11, "doce": 12, "trece": 13, "catorce": 14, "quince": 15, "dieciseis": 16, "diecisiete": 17,
         "dieciocho": 18, "diecinueve": 19, "veinte": 20, "veintiuno": 21, "veintidos": 22, "veintitres": 23, "veinticuatro": 24, "veinticinco": 25
     }
-
-    #Start audio stream
-    mic = pyaudio.PyAudio()
-    stream = mic.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
-    stream.start_stream()
-    print("Listening...")
-    
-    while True:
-        data = stream.read(4000)
-        if recognizer.AcceptWaveform(data):
-            result = recognizer.FinalResult()
-            palabras = str(result)
-            cleaned_str = re.sub('["{}:"]|text', '', palabras)
-            cleaned_str = ' '.join(cleaned_str.split())
-            print("Oración Reconocida: ", cleaned_str)
-            for i, numero in enumerate(numeros_texto):
-                if numero in cleaned_str:
-                    play("./assets/sounds/puntual.mp3")
-                    print("Palabra reconocida del arreglo: ", numero)
-                    if recognized_label:
-                            recognized_label.destroy()
-                    recognized_label = customtkinter.CTkLabel(master=main_frame, text=numero, text_color="green", font=("Roboto Regular", 20, "bold"))
-                    recognized_label.place(relx=0.5, rely=0.5, anchor="center")
-
-def switch_event():
-    print("switch toggled, current value:", switch_var.get())
-
-def pase_lista(textbox):
-    #Números del 1 al 25 en texto y su valor numérico
-    numeros_texto = {
-        "uno": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "siete": 7, "ocho": 8, "nueve": 9,
-        "diez": 10, "once": 11, "doce": 12, "trece": 13, "catorce": 14, "quince": 15, "dieciseis": 16, "diecisiete": 17,
-        "dieciocho": 18, "diecinueve": 19, "veinte": 20, "veintiuno": 21, "veintidos": 22, "veintitres": 23, "veinticuatro": 24, "veinticinco": 25
-    }
-
-    count=0
-    engine = pyttsx3.init()
-    engine.setProperty('rate', 130)
 
     # Arreglo para guardar 'Puntual' o 'Retardo'
     numeros = ['Falta'] * no_alumnos
@@ -121,14 +86,15 @@ def pase_lista(textbox):
     textbox.tag_config('puntual', foreground="#45CE30")
     textbox.tag_config('warning', foreground="#F3B63A")
     textbox.tag_config('falta', foreground="red")
+    button_continuar.configure(command=lambda:[thread_retardos(textbox, numeros, button_continuar), thread_countdown(textbox, numeros, alumnos_sort), exit_event.set()])
 
     #Comienza pase de lista
-    #no_alumnos
+
     #Start audio stream
     mic = pyaudio.PyAudio()
     stream = mic.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
     stream.start_stream()
-    print("Listening...")
+    print("Escuchando...")
     
     while True:
         data = stream.read(4000, exception_on_overflow=False)
@@ -143,22 +109,13 @@ def pase_lista(textbox):
 
             #Comprobar si el número aparece como palabra o como número
             for i, numero in enumerate(numeros_texto):
-                if numero in cleaned_str:
+                if numero in cleaned_str or str(numeros_texto[numero]) in cleaned_str:
                     textbox.delete("0.0", "end")
                     textbox.insert("end", "Registrando Asistencia...")
-                    numeros[i] = 'Puntual'
-                    play("./assets/sounds/puntual.mp3")
-                elif str(numeros_texto[numero]) in cleaned_str:
-                    textbox.delete("0.0", "end")
-                    textbox.insert("end", "Registrando Asistencia...")
-                    numeros[i] = 'Puntual'
-                    play("./assets/sounds/puntual.mp3")
-                elif str(numeros_texto[numero]) not in numeros[i]:
-                    print("Aquí se sale del index")
-                    continue
-                elif numero not in numeros[i]:
-                    print("Aquí se sale del index")
-                    continue
+                    if i < len(numeros): 
+                        numeros[i] = 'Puntual'
+                        play("./assets/sounds/puntual.mp3")
+            
             #textbox.delete("0.0", "end")
             #Imprimir los resultados
             print("Resultados:", numeros)
@@ -176,18 +133,20 @@ def pase_lista(textbox):
                     textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
                     textbox.insert("end", "Retardo\n", "warning")
                     end_index = textbox.index("end")
+            
             textbox.insert("end", "Escuchando...", "puntual")
                     #textbox.insert("0.0", numero_asistencia + ".- " + alumno_actual + " - " + numeros[j] + "\n")
                     #textbox.delete("0.0", "end")
+            if exit_event.is_set():
+                print("Thread Pase Lista Terminado")
+                break
         else:
             result = recognizer.PartialResult()
             continue
-        
-        
-    thread_retardos(textbox, numeros)
-    thread_countdown(textbox, numeros, alumnos_sort)
+    #thread_retardos(textbox, numeros)
+    #thread_countdown(textbox, numeros, alumnos_sort)
 
-def retardos(textbox, numeros):
+def retardos(textbox, numeros, button_continuar):
     time.sleep(3)
     tiempo_tolerancia=15
     #Inicia tiempo de tolerancia para retardos
@@ -199,72 +158,71 @@ def retardos(textbox, numeros):
         "dieciocho": 18, "diecinueve": 19, "veinte": 20, "veintiuno": 21, "veintidos": 22, "veintitres": 23, "veinticuatro": 24, "veinticinco": 25
     }
 
-    engine = pyttsx3.init()
-    engine.setProperty('rate', 110)
-
     #Colores para cada estado de asistencia
     textbox.tag_config('puntual', foreground="#45CE30")
     textbox.tag_config('warning', foreground="#F3B63A")
     textbox.tag_config('falta', foreground="red")
+    button_continuar.configure(command=lambda:[guardar_lista(textbox, numeros, alumnos_sort), exit_event_retardos.set()], text="Terminar")
+
+    #Start audio stream
+    mic = pyaudio.PyAudio()
+    stream = mic.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
+    stream.start_stream()
+    print("Escuchando...")
 
     while True:
-        try:
-            with sr.Microphone() as source:
-                    
-                #r.adjust_for_ambient_noise(source, duration=0.2)
-                audio = r.record(source, duration=tiempo_tolerancia)
+        data = stream.read(4000, exception_on_overflow=False)
+        #textbox.delete("0.0", "end")
+        
+        if recognizer.AcceptWaveform(data):
+            result = recognizer.FinalResult()
+            palabras = str(result)
+            cleaned_str = re.sub('["{}:"]|text', '', palabras)
+            cleaned_str = ' '.join(cleaned_str.split())
+            print("Oración Reconocida: ", cleaned_str)
 
-                # Reconocer el audio usando Google Web Speech API
-                text = r.recognize_google(audio, language="es-ES")
-                print("Oración reconocida: " + text)
-
-                # Dividir el texto en palabras
-                palabras = text.split()
-
-                #Comprobar si el número aparece como palabra o como número
-                for i, numero in enumerate(numeros_texto):
-                    if numero in palabras:
+            #Comprobar si el número aparece como palabra o como número
+            for i, numero in enumerate(numeros_texto):
+                if numero in cleaned_str or str(numeros_texto[numero]) in cleaned_str:
+                    if i < len(numeros): 
                         numeros[i] = 'Retardo'
-                        play("./assets/sounds/puntual.mp3")
-                    elif str(numeros_texto[numero]) in palabras:
-                        numeros[i] = 'Retardo'
-                        play("./assets/sounds/puntual.mp3")
+                        play("./assets/sounds/continue_2.mp3")
 
-                textbox.delete("0.0", "end")
-
-                #Imprimir los resultados
-                print("Resultados:", numeros)
-                for j in range(no_alumnos):
-                    alumno_actual = str(alumnos_sort[j])
-                    numero_asistencia = str(j+1)
-                    if numeros[j] == 'Puntual':
-                        start_index = textbox.index("end")
-                        textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
-                        textbox.insert("end", "Puntual\n", "puntual")
-                        end_index = textbox.index("end")
-                    elif numeros[j] == 'Retardo':
-                        start_index = textbox.index("end")
-                        textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
-                        textbox.insert("end", "Retardo\n", "warning")
-                        end_index = textbox.index("end")
-                    else:
-                        numeros[j] = 'Falta'
-                        start_index = textbox.index("end")
-                        textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
-                        textbox.insert("end", "Falta\n", "falta")
-                        end_index = textbox.index("end")
-        except sr.UnknownValueError:
-            print("No se pudo entender el audio. Por favor revise que su micrófono esté conectado.")
             textbox.delete("0.0", "end")
-            textbox.insert("end", "No se reconoció ninguna asistencia. Continuando...\n\n")
+
+            #Imprimir los resultados
+            print("Resultados:", numeros)
+            for j in range(no_alumnos):
+                alumno_actual = str(alumnos_sort[j])
+                numero_asistencia = str(j+1)
+                if numeros[j] == 'Puntual':
+                    start_index = textbox.index("end")
+                    textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
+                    textbox.insert("end", "Puntual\n", "puntual")
+                    end_index = textbox.index("end")
+                elif numeros[j] == 'Retardo':
+                    start_index = textbox.index("end")
+                    textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
+                    textbox.insert("end", "Retardo\n", "warning")
+                    end_index = textbox.index("end")
+                else:
+                    numeros[j] = 'Falta'
+                    start_index = textbox.index("end")
+                    textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
+                    textbox.insert("end", "Falta\n", "falta")
+                    end_index = textbox.index("end")
+            textbox.insert("end", "Escuchando...", "puntual")
+            if exit_event_retardos.is_set():
+                print("Thread Retardos Terminado")
+                break
+        else:
+            result = recognizer.PartialResult()
             continue
-        except sr.RequestError as e:
-            print("No se pudo solicitar resultados; {0}".format(e))
 
 def countdown(textbox, numeros, alumnos_sort):
     tiempo_tolerancia=15#10 * 60
     textbox.delete("0.0", "end")
-    textbox.configure(font=('Roboto', 30), width=700, height=600)
+    textbox.configure(font=('Roboto', 20), width=700, height=600)
     textbox.insert("end", "Comienzan a Contar Retardos\n")
     time.sleep(5)
     countdown_label = None
@@ -282,13 +240,19 @@ def countdown(textbox, numeros, alumnos_sort):
         countdown_label.place(relx=0.5, rely=0.5, anchor="center")
         time.sleep(1) 
         tiempo_tolerancia -= 1
+        if tiempo_tolerancia < 1:
+            exit_event_retardos.set()
+            if exit_event_retardos.is_set():
+                print("Thread Retardos Terminado")
+                break
     if countdown_label:  # Si ya existe, destruir el label previo antes de crear uno nuevo
             countdown_label.destroy()
     time.sleep(5)
     guardar_lista(textbox, numeros, alumnos_sort)
 
 def guardar_lista(textbox, numeros, alumnos_sort):
-    time.sleep(3)
+    #exit_event_retardos.set()
+    time.sleep(1)
     textbox.delete("0.0", "end")
     textbox.insert("end", "Guardando Lista\n")
     
@@ -381,13 +345,29 @@ def ver_lista_page():
 def pasar_lista_page():
     delete_pages()
     pasar_lista_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFFFFF")
-    pasar_lista_frame.pack_propagate(True)
+    pasar_lista_frame.pack_propagate(False)
     pasar_lista_frame.pack(padx=0, pady=0, fill="both")
 
     textbox = customtkinter.CTkTextbox(master=pasar_lista_frame, fg_color="transparent", text_color="#404040")
     textbox.configure(font=('Roboto', 20), height=600)
     textbox.pack(expand=True, side="right", fill="both")
-    thread_start(textbox)
+
+    detener_paso_lista_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
+    detener_paso_lista_frame.pack_propagate(False)
+    detener_paso_lista_frame.pack(padx=0, pady=0, expand=False, side="bottom", fill="x")
+    detener_paso_lista_frame.configure(height=120)
+
+    button_continuar = customtkinter.CTkButton(master=detener_paso_lista_frame,
+                                            fg_color="#75003E",
+                                            compound="left",
+                                            text="Comenzar Retardos",
+                                            text_color="#FFFFFF",
+                                            font=("Roboto Regular", 16, "bold"),
+                                            corner_radius=5,
+                                            width=160,
+                                            height=40)
+    button_continuar.place(relx=0.35, rely=0.3)
+    thread_start(textbox, button_continuar)
 
 def open_mic_page():
     delete_pages()
@@ -468,11 +448,6 @@ main_label.pack(pady=20)
 profesor_label = customtkinter.CTkLabel(master=main_frame, text="Cabrera Tejeda Juan José", text_color="#75003E", font=("Roboto Regular", 32))
 profesor_label.place(relx=0.5, rely=0.83, anchor="center")
 
-switch_var = customtkinter.StringVar(value="on")
-switch = customtkinter.CTkSwitch(master=main_frame, text="", command=switch_event,
-                                 variable=switch_var, onvalue="Online", offvalue="Offline")
-switch.pack()
-
 buttons_frame = customtkinter.CTkFrame(master=sidebar, fg_color="transparent")
 buttons_frame.pack(expand=True, side="top", fill="y")
 
@@ -501,19 +476,6 @@ button2 = customtkinter.CTkButton(master=buttons_frame,
                                   height=40,
                                   command=pasar_lista_page)
 button2.pack(padx=20, pady=20)
-
-button_open_mic = customtkinter.CTkButton(master=buttons_frame,
-                                  image=salir_icon,
-                                  compound="left",
-                                  text="Libre",
-                                  text_color="#404040",
-                                  font=("Roboto Regular", 16, "bold"),
-                                  corner_radius=5,
-                                  fg_color="#FFFFFF",
-                                  width=160,
-                                  height=40,
-                                  command=open_mic_page)
-button_open_mic.pack(padx=20, pady=20)
 
 button3 = customtkinter.CTkButton(master=buttons_frame,
                                   image=salir_icon,
