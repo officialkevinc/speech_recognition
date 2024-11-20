@@ -148,7 +148,7 @@ def pase_lista(textbox, button_continuar):
 
 def retardos(textbox, numeros, button_continuar):
     time.sleep(3)
-    tiempo_tolerancia=15
+    tiempo_tolerancia=20
     #Inicia tiempo de tolerancia para retardos
 
     #Números del 1 al 25 en texto y su valor numérico
@@ -455,8 +455,15 @@ button = customtkinter.CTkButton(master=buttons_frame,
                                  fg_color="#FFFFFF",
                                  command=ver_lista_page,
                                  width=160,
-                                 height=40)
+                                 height=40,
+                                 anchor="w")
 button.pack(padx=20, pady=20)
+button.bind("<Enter>", lambda event: button.configure(text_color="#FFFFFF",
+                                                        border_color="#FFFFFF",
+                                                        border_width=1,
+                                                        fg_color="transparent"))
+button.bind("<Leave>", lambda event: button.configure(text_color="#404040",
+                                                        fg_color="white"))
 
 button2 = customtkinter.CTkButton(master=buttons_frame,
                                   image=pasar_lista_icon,
@@ -468,8 +475,15 @@ button2 = customtkinter.CTkButton(master=buttons_frame,
                                   fg_color="#FFFFFF",
                                   width=160,
                                   height=40,
+                                  anchor="w",
                                   command=pasar_lista_page)
 button2.pack(padx=20, pady=20)
+button2.bind("<Enter>", lambda event: button2.configure(text_color="#FFFFFF",
+                                                        border_color="#FFFFFF",
+                                                        border_width=1,
+                                                        fg_color="transparent"))
+button2.bind("<Leave>", lambda event: button2.configure(text_color="#404040",
+                                                        fg_color="white"))
 
 button3 = customtkinter.CTkButton(master=buttons_frame,
                                   image=salir_icon,
@@ -481,8 +495,15 @@ button3 = customtkinter.CTkButton(master=buttons_frame,
                                   fg_color="#FFFFFF",
                                   width=160,
                                   height=40,
+                                  anchor="w",
                                   command=salir_programa)
 button3.pack(padx=20, pady=20)
+button3.bind("<Enter>", lambda event: button3.configure(text_color="#FFFFFF",
+                                                        border_color="#FFFFFF",
+                                                        border_width=1,
+                                                        fg_color="transparent"))
+button3.bind("<Leave>", lambda event: button3.configure(text_color="#404040",
+                                                        fg_color="white"))
 
 app.mainloop()
 
