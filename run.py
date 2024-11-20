@@ -90,6 +90,7 @@ def pase_lista(textbox, button_continuar):
     mic = pyaudio.PyAudio()
     stream = mic.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
     stream.start_stream()
+    textbox.insert("end", "Escuchando...", "puntual")
     print("Escuchando...")
     
     while True:
