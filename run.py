@@ -221,7 +221,7 @@ def retardos(textbox, numeros, button_continuar):
             continue
 
 def countdown(textbox, numeros, alumnos_sort):
-    tiempo_tolerancia=15#10 * 60
+    tiempo_tolerancia=20#10 * 60
     textbox.delete("0.0", "end")
     textbox.configure(font=('Roboto', 20), width=700, height=600)
     textbox.insert("end", "Comienzan a Contar Retardos\n")
