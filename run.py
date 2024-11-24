@@ -396,7 +396,7 @@ logo_esime = Image.open("./assets/images/esime.png")
 logo_esime = logo_esime.resize((50, 50))
 logo_esime_tk = ImageTk.PhotoImage(logo_esime)
 
-main_image = Image.open("./assets/images/main.png")
+main_image = Image.open("./assets/images/avatar.png")
 main_image = main_image.resize((300, 300))  #Tamaño de la imagen
 main_image_tk = ImageTk.PhotoImage(main_image)
 
