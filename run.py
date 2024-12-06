@@ -5,6 +5,9 @@ import customtkinter
 import time
 import pyttsx3
 import threading
+import re
+import json
+import pyaudio
 from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.worksheet.table import Table, TableStyleInfo
@@ -13,9 +16,25 @@ from openpyxl.styles import Font
 from threading import Thread
 from playsound3 import playsound as play
 from PIL import Image, ImageTk, ImageDraw
-import pyaudio
 from vosk import Model, KaldiRecognizer
-import re
+
+def load_config(file_path):
+    try:
+        with open(file_path, 'r') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return {"variables": {}, "array": [], "image_path": "default_image.png"}
+
+def save_config(file_path, data):
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent=4)
+
+config_file = "config.json"
+config_data = load_config(config_file)
+
+def update_variable(key, value):
+    config_data["variables"][key] = value #Dentro del grupo variables, en el parametro x, agrega
+    save_config(config_file, config_data)
 
 #Clear console
 def clear():
@@ -149,7 +168,7 @@ def pase_lista(textbox, button_continuar):
 
 def retardos(textbox, numeros, button_continuar):
     time.sleep(3)
-    tiempo_tolerancia=20
+    #tiempo_tolerancia=20
     #Inicia tiempo de tolerancia para retardos
 
     #Números del 1 al 25 en texto y su valor numérico
@@ -222,7 +241,7 @@ def retardos(textbox, numeros, button_continuar):
             continue
 
 def countdown(textbox, numeros, alumnos_sort):
-    tiempo_tolerancia=20#10 * 60
+    tiempo_tolerancia = int(config_data["variables"]["tiempo_tolerancia"]) * 60 #Carga el parametro tiempo_tolerancia y lo convierte a int
     textbox.delete("0.0", "end")
     textbox.configure(font=('Roboto', 20), width=700, height=600)
     textbox.insert("end", "Comienzan a Contar Retardos\n")
@@ -371,6 +390,73 @@ def pasar_lista_page():
     button_continuar.place(relx=0.35, rely=0.3)
     thread_start(textbox, button_continuar)
 
+def config_page():
+    delete_pages()
+    config_page_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#F4F4F4")
+    config_page_frame.pack(padx=0, pady=0, expand=True, side="top", fill="both")
+
+    config_page_button_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
+    config_page_button_frame.pack(padx=0, pady=0, expand=False, side="bottom", fill="x")
+    config_page_button_frame.configure(height=120)
+
+    # Cambiar variables
+
+    #Nombre
+    nombre_label = customtkinter.CTkLabel(master=config_page_frame, text="Nombre de Bienvenida", text_color="black", font=("Roboto Regular", 16, "bold"))
+    nombre_label.pack()
+    nombre_entry = customtkinter.CTkEntry(master=config_page_frame)
+    nombre_entry.insert(0, str(config_data["variables"].get("nombre", "")))
+    nombre_entry.pack()
+
+    #Tolerancia
+    tolerancia_label = customtkinter.CTkLabel(master=config_page_frame, text="Tolerancia (mins)", text_color="black", font=("Roboto Regular", 16, "bold"))
+    tolerancia_label.pack()
+    tolerancia_entry = customtkinter.CTkEntry(master=config_page_frame)
+    tolerancia_entry.insert(0, str(config_data["variables"].get("tiempo_tolerancia", "")))
+    tolerancia_entry.pack()
+
+    #Seleccionar Grupos
+    grupos_label = customtkinter.CTkLabel(master=config_page_frame, text="Seleccionar Grupo", text_color="black", font=("Roboto Regular", 16, "bold"))
+    grupos_label.pack()
+    grupos_dropdown = customtkinter.CTkComboBox(master=config_page_frame,
+                                                values=["Grupo 1",
+                                                        "Grupo 2"])
+    grupos_dropdown.pack()
+
+    #Agregar Grupos
+    grupos_label = customtkinter.CTkLabel(master=config_page_frame, text="Agregar un Grupo", text_color="black", font=("Roboto Regular", 16, "bold"))
+    grupos_label.pack()
+    grupos_entry = customtkinter.CTkEntry(master=config_page_frame)
+    grupos_entry.insert(0, str(config_data["grupos"].get("grupo1", "")))
+    grupos_entry.pack()
+
+    #Modelo de Reconocimiento
+    modelo_label = customtkinter.CTkLabel(master=config_page_frame, text="Seleccionar Modelo", text_color="black", font=("Roboto Regular", 16, "bold"))
+    modelo_label.pack()
+    modelo_dropdown = customtkinter.CTkComboBox(master=config_page_frame,
+                                                values=["Español (Light)",
+                                                        "Español (Full)",
+                                                        "English (Light)",
+                                                        "English (Full)"])
+    modelo_dropdown.pack()
+
+    button_actualizar = customtkinter.CTkButton(master=config_page_button_frame,
+                                                fg_color="#75003E",
+                                                compound="left",
+                                                text="Guardar Cambios",
+                                                text_color="#FFFFFF",
+                                                font=("Roboto Regular", 16, "bold"),
+                                                corner_radius=5,
+                                                width=160,
+                                                height=40,
+                                                command=lambda:
+                                                [   
+                                                    update_variable("nombre", nombre_entry.get()),
+                                                    update_variable("tiempo_tolerancia", tolerancia_entry.get()),
+                                                 
+                                                ])
+    button_actualizar.place(relx=0.5, rely=0.5)
+
 #Dia, hora y tiempo del dia
 dia_interfaz = datetime.now().strftime("%d/%m/%Y")
 hora_interfaz = datetime.now().strftime("%H:%M:%S")
@@ -486,7 +572,27 @@ button2.bind("<Enter>", lambda event: button2.configure(text_color="#FFFFFF",
 button2.bind("<Leave>", lambda event: button2.configure(text_color="#404040",
                                                         fg_color="white"))
 
-button3 = customtkinter.CTkButton(master=buttons_frame,
+button_confguracion = customtkinter.CTkButton(master=buttons_frame,
+                                  image=salir_icon,
+                                  compound="left",
+                                  text="Configuración",
+                                  text_color="#404040",
+                                  font=("Roboto Regular", 16, "bold"),
+                                  corner_radius=5,
+                                  fg_color="#FFFFFF",
+                                  width=160,
+                                  height=40,
+                                  anchor="w",
+                                  command=config_page)
+button_confguracion.pack(padx=20, pady=20)
+button_confguracion.bind("<Enter>", lambda event: button_confguracion.configure(text_color="#FFFFFF",
+                                                        border_color="#FFFFFF",
+                                                        border_width=1,
+                                                        fg_color="transparent"))
+button_confguracion.bind("<Leave>", lambda event: button_confguracion.configure(text_color="#404040",
+                                                        fg_color="white"))
+
+button_salir = customtkinter.CTkButton(master=buttons_frame,
                                   image=salir_icon,
                                   compound="left",
                                   text="Salir",
@@ -498,12 +604,12 @@ button3 = customtkinter.CTkButton(master=buttons_frame,
                                   height=40,
                                   anchor="w",
                                   command=salir_programa)
-button3.pack(padx=20, pady=20)
-button3.bind("<Enter>", lambda event: button3.configure(text_color="#FFFFFF",
+button_salir.pack(padx=20, pady=20)
+button_salir.bind("<Enter>", lambda event: button_salir.configure(text_color="#FFFFFF",
                                                         border_color="#FFFFFF",
                                                         border_width=1,
                                                         fg_color="transparent"))
-button3.bind("<Leave>", lambda event: button3.configure(text_color="#404040",
+button_salir.bind("<Leave>", lambda event: button_salir.configure(text_color="#404040",
                                                         fg_color="white"))
 
 app.mainloop()

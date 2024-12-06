@@ -1,0 +1,14 @@
+{
+    "variables": {
+        "nombre": "Roberto",
+        "tiempo_tolerancia": "4",
+        "variable2": "default",
+        "grupo": "5CV38"
+    },
+    "grupos": {
+        "grupo1": "5CV36",
+        "grupo2": "ND"
+    },
+    "array": [],
+    "image_path": "default_image.png"
+}
