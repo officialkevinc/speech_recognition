@@ -1,7 +1,7 @@
 {
     "variables": {
         "nombre": "Roberto",
-        "tiempo_tolerancia": "4",
+        "tiempo_tolerancia": "7",
         "variable2": "default",
         "grupo": "5CV38"
     },

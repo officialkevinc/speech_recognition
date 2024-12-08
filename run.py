@@ -392,7 +392,7 @@ def pasar_lista_page():
 
 def config_page():
     delete_pages()
-    config_page_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#F4F4F4")
+    config_page_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#F3F4F7")
     config_page_frame.pack(padx=0, pady=0, expand=True, side="top", fill="both")
 
     config_page_button_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
@@ -455,7 +455,7 @@ def config_page():
                                                     update_variable("tiempo_tolerancia", tolerancia_entry.get()),
                                                  
                                                 ])
-    button_actualizar.place(relx=0.5, rely=0.5)
+    button_actualizar.place(relx=0.35, rely=0.3)
 
 #Dia, hora y tiempo del dia
 dia_interfaz = datetime.now().strftime("%d/%m/%Y")
