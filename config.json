@@ -1,14 +1,13 @@
 {
     "variables": {
-        "nombre": "Roberto",
+        "nombre": "Juan Jose",
         "tiempo_tolerancia": "7",
-        "variable2": "default",
-        "grupo": "5CV38"
+        "frase_del_dia": "Esta es la nueva frase del dia"
     },
-    "grupos": {
-        "grupo1": "5CV36",
-        "grupo2": "ND"
-    },
-    "array": [],
+    "grupos": [
+        "5CV36",
+        "3CV26",
+        "2CV36"
+    ],
     "image_path": "default_image.png"
 }

@@ -23,7 +23,7 @@ def load_config(file_path):
         with open(file_path, 'r') as file:
             return json.load(file)
     except FileNotFoundError:
-        return {"variables": {}, "array": [], "image_path": "default_image.png"}
+        return {"variables": {}, "grupos": [], "image_path": "default_image.png"}
 
 def save_config(file_path, data):
     with open(file_path, 'w') as file:
@@ -35,6 +35,9 @@ config_data = load_config(config_file)
 def update_variable(key, value):
     config_data["variables"][key] = value #Dentro del grupo variables, en el parametro x, agrega
     save_config(config_file, config_data)
+
+#Sacar valores del array grupos en el config.json
+grupos = config_data["grupos"]
 
 #Clear console
 def clear():
@@ -91,7 +94,7 @@ def pase_lista(textbox, button_continuar):
     numeros_texto = {
         "uno": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "siete": 7, "ocho": 8, "nueve": 9,
         "diez": 10, "once": 11, "doce": 12, "trece": 13, "catorce": 14, "quince": 15, "dieciseis": 16, "diecisiete": 17,
-        "dieciocho": 18, "diecinueve": 19, "veinte": 20, "veintiuno": 21, "veintidos": 22, "veintitres": 23, "veinticuatro": 24, "veinticinco": 25
+        "dieciocho": 18, "diecinueve": 19, "veinte": 20, "veintiuno": 21, "veintidós": 22, "veintitres": 23, "veinticuatro": 24, "veinticinco": 25
     }
 
     # Arreglo para guardar 'Puntual' o 'Retardo'
@@ -325,6 +328,30 @@ def guardar_lista(textbox, numeros, alumnos_sort):
     current_date = datetime.now().strftime("%d-%m-%Y %H-%M")
     custom_workbook.save(f"Lista {current_date}.xlsx")
 
+def frase_del_dia():
+    #frase_del_dia_main_label.tag_config('puntual', foreground="#45CE30")
+    
+    #Start audio stream
+    mic = pyaudio.PyAudio()
+    stream = mic.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
+    stream.start_stream()
+    print("Escuchando...")
+
+    while True:
+        data = stream.read(4000, exception_on_overflow=False)
+        #textbox.delete("0.0", "end")
+        
+        if recognizer.AcceptWaveform(data):
+            result = recognizer.FinalResult()
+            palabras = str(result)
+            cleaned_str = re.sub('["{}:"]|text', '', palabras)
+            #cleaned_str = ' '.join(cleaned_str.split())
+            cleaned_str = cleaned_str.split()
+            print("Oración Reconocida: ", cleaned_str)
+        else:
+            result = recognizer.PartialResult()
+            continue
+
 def salir_programa():
     quit()
 
@@ -350,12 +377,24 @@ def delete_pages():
 
 def ver_lista_page():
     delete_pages()
+
+    #Top Frame
+    ver_lista_frame_top_bar = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
+    ver_lista_frame_top_bar.pack_propagate(False)
+    ver_lista_frame_top_bar.pack(padx=0, pady=0, expand=False, side="top", fill="x")
+    ver_lista_frame_top_bar.configure(height=60)
+
+    #Top Frame Label
+    ver_lista_frame_top_label = customtkinter.CTkLabel(master=ver_lista_frame_top_bar, text=(f"Grupo: 5CV36"), text_color="#75003E", font=("Roboto Regular", 20, "bold"))
+    ver_lista_frame_top_label.pack(padx=10, pady=3, side="left", expand=False)
+
+    #Main Frame
     ver_lista_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFFFFF")
     ver_lista_frame.pack_propagate(True)
     ver_lista_frame.pack(padx=0, pady=0, fill="both")
 
     textbox = customtkinter.CTkTextbox(master=ver_lista_frame, fg_color="transparent", text_color="#404040")
-    textbox.configure(font=('Roboto', 20), height=400)
+    textbox.configure(font=('Roboto', 20), height=600)
     textbox.pack(expand=True, side="right", fill="both")
 
     #button_agregar_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
@@ -365,6 +404,18 @@ def ver_lista_page():
 
 def pasar_lista_page():
     delete_pages()
+
+    #Top Frame
+    pasar_lista_top_bar = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
+    pasar_lista_top_bar.pack_propagate(False)
+    pasar_lista_top_bar.pack(padx=0, pady=0, expand=False, side="top", fill="x")
+    pasar_lista_top_bar.configure(height=60)
+
+    #Top Frame Label
+    pasar_lista_frame_top_label = customtkinter.CTkLabel(master=pasar_lista_top_bar, text=(f"Pasar Asistencia"), text_color="#75003E", font=("Roboto Regular", 20, "bold"))
+    pasar_lista_frame_top_label.pack(padx=10, pady=3, side="left", expand=False)
+
+    #Main Frame
     pasar_lista_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFFFFF")
     pasar_lista_frame.pack_propagate(False)
     pasar_lista_frame.pack(padx=0, pady=0, fill="both")
@@ -387,26 +438,64 @@ def pasar_lista_page():
                                             corner_radius=5,
                                             width=160,
                                             height=40)
-    button_continuar.place(relx=0.35, rely=0.3)
+    button_continuar.place(relx=0.38, rely=0.3)
     thread_start(textbox, button_continuar)
+
+def frase_del_dia_page():
+    delete_pages()
+    frase_del_dia = config_data["variables"]["frase_del_dia"]
+
+    #Top Frame
+    frase_del_dia_top_bar = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
+    frase_del_dia_top_bar.pack_propagate(False)
+    frase_del_dia_top_bar.pack(padx=0, pady=0, expand=False, side="top", fill="x")
+    frase_del_dia_top_bar.configure(height=60)
+
+    #Top Frame Label
+    frase_del_dia_frame_top_label = customtkinter.CTkLabel(master=frase_del_dia_top_bar, text=("Frase del Dia"), text_color="#75003E", font=("Roboto Regular", 20, "bold"))
+    frase_del_dia_frame_top_label.pack(padx=10, pady=3, side="left", expand=False)
+
+    #Main Frame
+    frase_del_dia_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFFFFF")
+    frase_del_dia_frame.pack_propagate(False)
+    frase_del_dia_frame.pack(padx=0, pady=0, fill="both")
+
+    #Frase del dia
+    frase_del_dia_main_label = customtkinter.CTkLabel(master=frase_del_dia_frame, text=(frase_del_dia), text_color="#75003E", font=("Roboto Regular", 20, "bold"))
+    frase_del_dia_main_label.pack(padx=10, pady=3, side="left", expand=True)
+
+    frase_del_dia()
 
 def config_page():
     delete_pages()
+
+    #Top Frame
+    config_page_frame_top_bar = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
+    config_page_frame_top_bar.pack_propagate(False)
+    config_page_frame_top_bar.pack(padx=0, pady=0, expand=False, side="top", fill="x")
+    config_page_frame_top_bar.configure(height=60)
+
+    #Top Frame Label
+    config_page_frame_top_label = customtkinter.CTkLabel(master=config_page_frame_top_bar, text=(f"Configuración"), text_color="#75003E", font=("Roboto Regular", 20, "bold"))
+    config_page_frame_top_label.pack(padx=10, pady=3, side="left", expand=False)
+
+    #Main Frame
     config_page_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#F3F4F7")
     config_page_frame.pack(padx=0, pady=0, expand=True, side="top", fill="both")
 
+    
     config_page_button_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
     config_page_button_frame.pack(padx=0, pady=0, expand=False, side="bottom", fill="x")
     config_page_button_frame.configure(height=120)
 
     # Cambiar variables
 
-    #Nombre
-    nombre_label = customtkinter.CTkLabel(master=config_page_frame, text="Nombre de Bienvenida", text_color="black", font=("Roboto Regular", 16, "bold"))
-    nombre_label.pack()
-    nombre_entry = customtkinter.CTkEntry(master=config_page_frame)
-    nombre_entry.insert(0, str(config_data["variables"].get("nombre", "")))
-    nombre_entry.pack()
+    ###Nombre
+    #nombre_label = customtkinter.CTkLabel(master=config_page_frame, text="Nombre de Bienvenida", text_color="black", font=("Roboto Regular", 16, "bold"))
+    #ombre_label.pack()
+    #nombre_entry = customtkinter.CTkEntry(master=config_page_frame)
+    #nombre_entry.insert(0, str(config_data["variables"].get("nombre", "")))
+    #nombre_entry.pack()
 
     #Tolerancia
     tolerancia_label = customtkinter.CTkLabel(master=config_page_frame, text="Tolerancia (mins)", text_color="black", font=("Roboto Regular", 16, "bold"))
@@ -419,15 +508,19 @@ def config_page():
     grupos_label = customtkinter.CTkLabel(master=config_page_frame, text="Seleccionar Grupo", text_color="black", font=("Roboto Regular", 16, "bold"))
     grupos_label.pack()
     grupos_dropdown = customtkinter.CTkComboBox(master=config_page_frame,
-                                                values=["Grupo 1",
-                                                        "Grupo 2"])
+                                                values=[grupos[1],
+                                                        grupos[1],
+                                                        grupos[2]])
     grupos_dropdown.pack()
+    grupo_actual = str(grupos_dropdown.get()) #Conseguir la selección del grupo actual
+    grupos_actual_label = customtkinter.CTkLabel(master=config_page_frame, text=(f"Grupo Actual: {grupo_actual}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+    grupos_actual_label.pack()
 
     #Agregar Grupos
     grupos_label = customtkinter.CTkLabel(master=config_page_frame, text="Agregar un Grupo", text_color="black", font=("Roboto Regular", 16, "bold"))
     grupos_label.pack()
     grupos_entry = customtkinter.CTkEntry(master=config_page_frame)
-    grupos_entry.insert(0, str(config_data["grupos"].get("grupo1", "")))
+    grupos_entry.insert(0, str(config_data["variables"].get("nombre", "")))
     grupos_entry.pack()
 
     #Modelo de Reconocimiento
@@ -440,6 +533,13 @@ def config_page():
                                                         "English (Full)"])
     modelo_dropdown.pack()
 
+    #Frase del dia
+    frase_del_dia_label = customtkinter.CTkLabel(master=config_page_frame, text="Frase del Día", text_color="black", font=("Roboto Regular", 16, "bold"))
+    frase_del_dia_label.pack()
+    frase_del_dia_entry = customtkinter.CTkEntry(master=config_page_frame)
+    frase_del_dia_entry.insert(0, str(config_data["variables"].get("frase_del_dia", "")))
+    frase_del_dia_entry.pack()
+
     button_actualizar = customtkinter.CTkButton(master=config_page_button_frame,
                                                 fg_color="#75003E",
                                                 compound="left",
@@ -451,11 +551,11 @@ def config_page():
                                                 height=40,
                                                 command=lambda:
                                                 [   
-                                                    update_variable("nombre", nombre_entry.get()),
                                                     update_variable("tiempo_tolerancia", tolerancia_entry.get()),
+                                                    update_variable("frase_del_dia", frase_del_dia_entry.get()),
                                                  
                                                 ])
-    button_actualizar.place(relx=0.35, rely=0.3)
+    button_actualizar.place(relx=0.38, rely=0.3)
 
 #Dia, hora y tiempo del dia
 dia_interfaz = datetime.now().strftime("%d/%m/%Y")
@@ -552,7 +652,7 @@ button.bind("<Enter>", lambda event: button.configure(text_color="#FFFFFF",
 button.bind("<Leave>", lambda event: button.configure(text_color="#404040",
                                                         fg_color="white"))
 
-button2 = customtkinter.CTkButton(master=buttons_frame,
+button_pasar_lista = customtkinter.CTkButton(master=buttons_frame,
                                   image=pasar_lista_icon,
                                   compound="left",
                                   text="Pasar Lista",
@@ -564,12 +664,32 @@ button2 = customtkinter.CTkButton(master=buttons_frame,
                                   height=40,
                                   anchor="w",
                                   command=pasar_lista_page)
-button2.pack(padx=20, pady=20)
-button2.bind("<Enter>", lambda event: button2.configure(text_color="#FFFFFF",
+button_pasar_lista.pack(padx=20, pady=20)
+button_pasar_lista.bind("<Enter>", lambda event: button_pasar_lista.configure(text_color="#FFFFFF",
                                                         border_color="#FFFFFF",
                                                         border_width=1,
                                                         fg_color="transparent"))
-button2.bind("<Leave>", lambda event: button2.configure(text_color="#404040",
+button_pasar_lista.bind("<Leave>", lambda event: button_pasar_lista.configure(text_color="#404040",
+                                                        fg_color="white"))
+
+button_fdd = customtkinter.CTkButton(master=buttons_frame,
+                                  image=pasar_lista_icon,
+                                  compound="left",
+                                  text="Frase del Dia",
+                                  text_color="#404040",
+                                  font=("Roboto Regular", 16, "bold"),
+                                  corner_radius=5,
+                                  fg_color="#FFFFFF",
+                                  width=160,
+                                  height=40,
+                                  anchor="w",
+                                  command=frase_del_dia_page)
+button_fdd.pack(padx=20, pady=20)
+button_fdd.bind("<Enter>", lambda event: button_fdd.configure(text_color="#FFFFFF",
+                                                        border_color="#FFFFFF",
+                                                        border_width=1,
+                                                        fg_color="transparent"))
+button_fdd.bind("<Leave>", lambda event: button_fdd.configure(text_color="#404040",
                                                         fg_color="white"))
 
 button_confguracion = customtkinter.CTkButton(master=buttons_frame,
