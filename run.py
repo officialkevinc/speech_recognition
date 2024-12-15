@@ -8,6 +8,7 @@ import threading
 import re
 import json
 import pyaudio
+import sqlite3
 from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.worksheet.table import Table, TableStyleInfo
@@ -51,6 +52,16 @@ recognizer = KaldiRecognizer(model, 16000)
 i = 0
 alumnos = []
 
+#Cargar lista de alumnos y elementos de db
+conn = sqlite3.connect('students.db')
+cursor = conn.cursor()
+lista = cursor.execute("SELECT * FROM students WHERE grupo='5CV32'").fetchall()
+no_alumnos = cursor.execute("SELECT COUNT(*) FROM students WHERE grupo='5CV32'").fetchone()[0]
+conn.close()
+
+#Convertir cada tupla en una lista para poder modificarla
+lista = [list(tupla) for tupla in lista]
+
 #Cargar archivo de alumnos
 try:
     with open("alumnos_raw.txt", "r") as file:
@@ -63,16 +74,16 @@ alumnos_sort = sorted(existing_strings)
 exit_event = threading.Event()
 exit_event_retardos = threading.Event()
 
-def thread_start(textbox, button_continuar):
-    t = Thread(target=pase_lista, args=(textbox, button_continuar,), daemon=True)
+def thread_start(textbox, button_continuar, pasar_lista_frame, info_label, alumno_frame, info_listening_label, info_timer_label):
+    t = Thread(target=pase_lista, args=(textbox, button_continuar, pasar_lista_frame, info_label, alumno_frame, info_listening_label, info_timer_label,), daemon=True)
     t.start()
 
-def thread_retardos(textbox, numeros, button_continuar):
-    t = Thread(target=retardos, args=(textbox, numeros, button_continuar,), daemon=True)
+def thread_retardos(textbox, button_continuar, pasar_lista_frame, info_label, alumno_frame, info_listening_label):
+    t = Thread(target=retardos, args=(textbox, button_continuar, pasar_lista_frame, info_label, alumno_frame, info_listening_label,), daemon=True)
     t.start()
 
-def thread_countdown(textbox, numeros, alumnos_sort):
-    t = Thread(target=countdown, args=(textbox, numeros, alumnos_sort,), daemon=True)
+def thread_countdown(info_timer_label):
+    t = Thread(target=countdown, args=(info_timer_label), daemon=True)
     t.start()
 
 def thread_hora_actual():
@@ -89,22 +100,20 @@ def tiempo_actual():
         hora_actual_label.pack(padx=10, pady=3, side="right", expand=True)
         time.sleep(1)
 
-def pase_lista(textbox, button_continuar):
+def pase_lista(textbox, button_continuar, pasar_lista_frame, info_label, alumno_frame, info_listening_label, info_timer_label):
     #Números del 1 al 25 en texto y su valor numérico
     numeros_texto = {
         "uno": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "siete": 7, "ocho": 8, "nueve": 9,
         "diez": 10, "once": 11, "doce": 12, "trece": 13, "catorce": 14, "quince": 15, "dieciseis": 16, "diecisiete": 17,
-        "dieciocho": 18, "diecinueve": 19, "veinte": 20, "veintiuno": 21, "veintidós": 22, "veintitres": 23, "veinticuatro": 24, "veinticinco": 25
+        "dieciocho": 18, "diecinueve": 19, "veinte": 20, "veintiuno": 21, "veintidos": 22, "veintidós": 22, "veintitres": 23, "veintitrés": 23, "veinticuatro": 24, "veinticinco": 25
     }
 
-    # Arreglo para guardar 'Puntual' o 'Retardo'
-    numeros = ['Falta'] * no_alumnos
-    
-    #Colores para cada estado de asistencia
-    textbox.tag_config('puntual', foreground="#45CE30")
-    textbox.tag_config('warning', foreground="#F3B63A")
-    textbox.tag_config('falta', foreground="red")
-    button_continuar.configure(command=lambda:[thread_retardos(textbox, numeros, button_continuar), thread_countdown(textbox, numeros, alumnos_sort), exit_event.set()])
+    for i in range(no_alumnos):
+        lista[i][5] = "Falta"
+        print(lista[i][5])
+        i=+1
+
+    button_continuar.configure(command=lambda:[thread_retardos(textbox, button_continuar, pasar_lista_frame, info_label, alumno_frame, info_listening_label), thread_countdown(info_timer_label), exit_event.set()])
 
     #Comienza pase de lista
 
@@ -112,85 +121,78 @@ def pase_lista(textbox, button_continuar):
     mic = pyaudio.PyAudio()
     stream = mic.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
     stream.start_stream()
-    textbox.insert("end", "Escuchando...", "puntual")
     print("Escuchando...")
+    
+    info_listening_label.configure(text="Escuchando...", text_color="#45CE30")
     
     while True:
         data = stream.read(4000, exception_on_overflow=False)
-        #textbox.delete("0.0", "end")
         
         if recognizer.AcceptWaveform(data):
             result = recognizer.FinalResult()
             palabras = str(result)
             cleaned_str = re.sub('["{}:"]|text', '', palabras)
-            #cleaned_str = ' '.join(cleaned_str.split())
             cleaned_str = cleaned_str.split()
             print("Oración Reconocida: ", cleaned_str)
 
             #Comprobar si el número aparece como palabra o como número
             for i, numero in enumerate(numeros_texto):
                 if numero in cleaned_str or str(numeros_texto[numero]) in cleaned_str:
-                    print(numero)
-                    print(cleaned_str)
-                    print(str(numeros_texto[numero]))
-                    textbox.delete("0.0", "end")
-                    textbox.insert("end", "Registrando Asistencia...")
-                    if i < len(numeros): 
-                        numeros[i] = 'Puntual'
-                        play("./assets/sounds/puntual.mp3")
-            
-            #textbox.delete("0.0", "end")
-            #Imprimir los resultados
-            print("Resultados:", numeros)
-            textbox.delete("0.0", "end")
-            for j in range(no_alumnos):
-                alumno_actual = str(alumnos_sort[j])
-                numero_asistencia = str(j+1)
-                if numeros[j] == 'Puntual':
-                    start_index = textbox.index("end")
-                    textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
-                    textbox.insert("end", "Puntual\n", "puntual")
-                    end_index = textbox.index("end")
-                else:
-                    start_index = textbox.index("end")
-                    textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
-                    textbox.insert("end", "Retardo\n", "warning")
-                    end_index = textbox.index("end")
-            
-            textbox.insert("end", "Escuchando...", "puntual")
-                    #textbox.insert("0.0", numero_asistencia + ".- " + alumno_actual + " - " + numeros[j] + "\n")
-                    #textbox.delete("0.0", "end")
+                    print(f"Variable Número: {numero}")
+                    print(f"Variable cleaned_str: {cleaned_str}")
+                    numero_reconocido = int(numeros_texto[numero])
+                    print(f"Otra Variable: {numero_reconocido}")
+                    numero_reconocido = numero_reconocido - 1
+                    info_listening_label.configure(text="Registrando Asistencia...", text_color="#F3B63A")
+                    play("./assets/sounds/puntual.mp3")
+                    lista[numero_reconocido][5] = "Puntual"
+
+            info_listening_label.configure(text="Escuchando...", text_color="#45CE30")
+
+            #Terminar Thread
             if exit_event.is_set():
+                #Imprimir los resultados
+                for i in range(no_alumnos):
+                    alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][0]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+                    alumno_label.grid(row=i, column=0, sticky="W", padx=10)
+                    alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][2]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+                    alumno_label.grid(row=i, column=1, sticky="W", padx=20)
+                    alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][1]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+                    alumno_label.grid(row=i, column=2, sticky="W", padx=20)
+                    alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][3]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+                    alumno_label.grid(row=i, column=3, sticky="W", padx=20)
+                    alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][4]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+                    alumno_label.grid(row=i, column=4, sticky="W", padx=20)
+                    if lista[i][5] == "Puntual":
+                        alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][5]}"), text_color="#45CE30", font=("Roboto Regular", 16, "bold"))
+                        alumno_label.grid(row=i, column=5, sticky="W", padx=20)
+                    #print(f"Número: {lista[i][0]} | Apellido: {lista[i][2]} | Nombre: {lista[i][1]} |  Grupo: {lista[i][3]} | Boleta: {lista[i][4]} | Estado: {lista[i][5]}")
+                    i =+ 1
                 print("Thread Pase Lista Terminado")
                 break
         else:
             result = recognizer.PartialResult()
             continue
-    #thread_retardos(textbox, numeros)
-    #thread_countdown(textbox, numeros, alumnos_sort)
 
-def retardos(textbox, numeros, button_continuar):
+def retardos(textbox, button_continuar, pasar_lista_frame, info_label, alumno_frame, info_listening_label):
+    info_listening_label.configure(text="Comienzan a Contar Retardos", text_color="#F3B63A")
     time.sleep(3)
-    #tiempo_tolerancia=20
     #Inicia tiempo de tolerancia para retardos
 
     #Números del 1 al 25 en texto y su valor numérico
     numeros_texto = {
         "uno": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "siete": 7, "ocho": 8, "nueve": 9,
         "diez": 10, "once": 11, "doce": 12, "trece": 13, "catorce": 14, "quince": 15, "dieciseis": 16, "diecisiete": 17,
-        "dieciocho": 18, "diecinueve": 19, "veinte": 20, "veintiuno": 21, "veintidos": 22, "veintitres": 23, "veinticuatro": 24, "veinticinco": 25
+        "dieciocho": 18, "diecinueve": 19, "veinte": 20, "veintiuno": 21, "veintidos": 22, "veintidós": 22, "veintitres": 23, "veintitrés": 23, "veinticuatro": 24, "veinticinco": 25
     }
 
-    #Colores para cada estado de asistencia
-    textbox.tag_config('puntual', foreground="#45CE30")
-    textbox.tag_config('warning', foreground="#F3B63A")
-    textbox.tag_config('falta', foreground="red")
-    button_continuar.configure(command=lambda:[guardar_lista(textbox, numeros, alumnos_sort), exit_event_retardos.set()], text="Terminar")
+    button_continuar.configure(command=lambda:[guardar_lista_db(), exit_event_retardos.set()], text="Terminar")
 
     #Start audio stream
     mic = pyaudio.PyAudio()
     stream = mic.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
     stream.start_stream()
+    info_listening_label.configure(text="Escuchando...", text_color="#45CE30")
     print("Escuchando...")
 
     while True:
@@ -208,48 +210,44 @@ def retardos(textbox, numeros, button_continuar):
             #Comprobar si el número aparece como palabra o como número
             for i, numero in enumerate(numeros_texto):
                 if numero in cleaned_str or str(numeros_texto[numero]) in cleaned_str:
-                    if i < len(numeros): 
-                        numeros[i] = 'Retardo'
-                        play("./assets/sounds/continue_2.mp3")
-
-            textbox.delete("0.0", "end")
-
-            #Imprimir los resultados
-            print("Resultados:", numeros)
-            for j in range(no_alumnos):
-                alumno_actual = str(alumnos_sort[j])
-                numero_asistencia = str(j+1)
-                if numeros[j] == 'Puntual':
-                    start_index = textbox.index("end")
-                    textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
-                    textbox.insert("end", "Puntual\n", "puntual")
-                    end_index = textbox.index("end")
-                elif numeros[j] == 'Retardo':
-                    start_index = textbox.index("end")
-                    textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
-                    textbox.insert("end", "Retardo\n", "warning")
-                    end_index = textbox.index("end")
+                    print(f"Variable Número: {numero}")
+                    print(f"Variable cleaned_str: {cleaned_str}")
+                    numero_reconocido = int(numeros_texto[numero])
+                    print(f"Otra Variable: {numero_reconocido}")
+                    numero_reconocido = numero_reconocido - 1
+                    info_listening_label.configure(text="Registrando Retardo...", text_color="#F3B63A")
+                    play("./assets/sounds/puntual.mp3")
+                    lista[numero_reconocido][5] = "Retardo"
+            
+                    info_listening_label.configure(text="Escuchando...", text_color="#45CE30")
+                    if exit_event_retardos.is_set(): #Si se presiona el botón que termina el thread retardos
+                        #Imprimir los resultados
+                        for i in range(no_alumnos):
+                            alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][0]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+                            alumno_label.grid(row=i, column=0, sticky="W", padx=10)
+                            alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][2]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+                            alumno_label.grid(row=i, column=1, sticky="W", padx=20)
+                            alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][1]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+                            alumno_label.grid(row=i, column=2, sticky="W", padx=20)
+                            alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][3]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+                            alumno_label.grid(row=i, column=3, sticky="W", padx=20)
+                            alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][4]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+                            alumno_label.grid(row=i, column=4, sticky="W", padx=20)
+                            if lista[i][5] == "Retardo":
+                                alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][5]}"), text_color="#F3B63A", font=("Roboto Regular", 16, "bold"))
+                                alumno_label.grid(row=i, column=5, sticky="W", padx=20)
+                            #print(f"Número: {lista[i][0]} | Apellido: {lista[i][2]} | Nombre: {lista[i][1]} |  Grupo: {lista[i][3]} | Boleta: {lista[i][4]} | Estado: {lista[i][5]}")
+                            i =+ 1
+                        print("Thread Retardos Terminado")
+                        break
                 else:
-                    numeros[j] = 'Falta'
-                    start_index = textbox.index("end")
-                    textbox.insert("end", numero_asistencia + ".- " + alumno_actual + " - ")
-                    textbox.insert("end", "Falta\n", "falta")
-                    end_index = textbox.index("end")
-            textbox.insert("end", "Escuchando...", "puntual")
-            if exit_event_retardos.is_set():
-                print("Thread Retardos Terminado")
-                break
-        else:
-            result = recognizer.PartialResult()
-            continue
+                    result = recognizer.PartialResult()
+                    continue
 
-def countdown(textbox, numeros, alumnos_sort):
+def countdown(info_timer_label):
     tiempo_tolerancia = int(config_data["variables"]["tiempo_tolerancia"]) * 60 #Carga el parametro tiempo_tolerancia y lo convierte a int
-    textbox.delete("0.0", "end")
-    textbox.configure(font=('Roboto', 20), width=700, height=600)
-    textbox.insert("end", "Comienzan a Contar Retardos\n")
     time.sleep(5)
-    countdown_label = None
+    info_timer_label = None
     while tiempo_tolerancia:
         mins, secs = divmod(tiempo_tolerancia, 60)
         timer_tolerancia = mins
@@ -258,27 +256,30 @@ def countdown(textbox, numeros, alumnos_sort):
             time_running_out = "red"
         else:
             time_running_out = "#45CE30"
-        if countdown_label:  # Si ya existe, destruir el label previo antes de crear uno nuevo
-            countdown_label.destroy()
-        countdown_label = customtkinter.CTkLabel(master=main_frame, text=timer, text_color=time_running_out, font=("Roboto Regular", 80, "bold"))
-        countdown_label.place(relx=0.5, rely=0.5, anchor="center")
+        if info_timer_label:  # Si ya existe, destruir el label previo antes de crear uno nuevo
+            info_timer_label.destroy()
+        info_timer_label.configure(text=timer, text_color=time_running_out)
         time.sleep(1) 
         tiempo_tolerancia -= 1
         if tiempo_tolerancia < 1:
             exit_event_retardos.set()
             if exit_event_retardos.is_set():
-                print("Thread Retardos Terminado")
+                print("Thread Countdown Terminado")
                 break
-    if countdown_label:  # Si ya existe, destruir el label previo antes de crear uno nuevo
-            countdown_label.destroy()
+    if info_timer_label:  # Si ya existe, destruir el label previo antes de crear uno nuevo
+            info_timer_label.destroy()
     time.sleep(5)
-    guardar_lista(textbox, numeros, alumnos_sort)
+    guardar_lista_db()
 
-def guardar_lista(textbox, numeros, alumnos_sort):
+def guardar_lista_db():
+    for i in range(25):
+        print(f"Número: {lista[i][0]} | Nombre: {lista[i][1]} | Apellido: {lista[i][2]} | Grupo: {lista[i][3]} | Boleta: {lista[i][4]}")
+        i =+ 1
+    pass
+
+def guardar_lista():
     #exit_event_retardos.set()
     time.sleep(1)
-    textbox.delete("0.0", "end")
-    textbox.insert("end", "Guardando Lista\n")
     
     current_date = datetime.now().strftime("%d/%m/%Y %H:%M")
 
@@ -295,7 +296,7 @@ def guardar_lista(textbox, numeros, alumnos_sort):
 
     #Imprimir los nombres
     fila_inicio = 8
-    for i, alumno in enumerate(alumnos_sort):
+    for i, alumno in enumerate(no_alumnos):
         if fila_inicio + i <= 42:  # Para no exceder la fila 42
             sheet.cell(row=fila_inicio + i, column=3).value = alumno
 
@@ -304,7 +305,7 @@ def guardar_lista(textbox, numeros, alumnos_sort):
         celda = sheet.cell(row=7, column=col)
         if celda.value == dia_actual:
             # Si se encuentra la columna con el día actual, escribir la información de numeros[]
-            for i, asistencia in enumerate(numeros):
+            for i, asistencia in enumerate(no_alumnos):
                 if fila_inicio + i <= 42:  # Para no exceder la fila 42
                     if asistencia == 'Puntual':
                         shortener = 'P'
@@ -355,27 +356,24 @@ def frase_del_dia():
 def salir_programa():
     quit()
 
-def cargar_lista(textbox):
-    counter = 1
-    countdown_label = None
-    if countdown_label:  # Si ya existe, destruir el label previo antes de crear uno nuevo
-            countdown_label.destroy()
-    for lista in alumnos_sort:
-        count = str(counter)
-        start_index = textbox.index("end")
-        textbox.insert("end", count + ".- " + lista + "\n")
-        print("Alumnos Ordenados:", lista)
-        counter += 1
-
+def ver_lista():
+    conn = sqlite3.connect('students.db')
+    cursor = conn.cursor()
+    lista = cursor.execute("SELECT * FROM students WHERE grupo='5CV32'").fetchall()
+    for i in range(25):
+        print(f"Número: {lista[i][0]} | Nombre: {lista[i][1]} | Apellido: {lista[i][2]} | Grupo: {lista[i][3]} | Boleta: {lista[i][4]}")
+        i =+ 1
+     
 app = customtkinter.CTk()
 app.title("Speech Recognition App")
-app.geometry("900x600")
+app.geometry("1024x768")
 
 def delete_pages():
     for frame in main_frame.winfo_children():
         frame.destroy()
 
 def ver_lista_page():
+    
     delete_pages()
 
     #Top Frame
@@ -393,13 +391,44 @@ def ver_lista_page():
     ver_lista_frame.pack_propagate(True)
     ver_lista_frame.pack(padx=0, pady=0, fill="both")
 
-    textbox = customtkinter.CTkTextbox(master=ver_lista_frame, fg_color="transparent", text_color="#404040")
-    textbox.configure(font=('Roboto', 20), height=600)
-    textbox.pack(expand=True, side="right", fill="both")
+    #Alumno Frame
+    info_frame = customtkinter.CTkFrame(master=ver_lista_frame, fg_color="#FFFFFF")
+    info_frame.pack_propagate(True)
+    info_frame.pack(padx=0, pady=0, fill="both")
+    info_frame.configure(height=60)
+    info_label = customtkinter.CTkLabel(master=info_frame, text="No", text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=False)
+    info_label = customtkinter.CTkLabel(master=info_frame, text="Apellido", text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_label = customtkinter.CTkLabel(master=info_frame, text="Nombre", text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_label = customtkinter.CTkLabel(master=info_frame, text="Grupo", text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_label = customtkinter.CTkLabel(master=info_frame, text="Boleta", text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_label = customtkinter.CTkLabel(master=info_frame, text="Estado", text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
 
-    #button_agregar_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
-    #button_agregar_frame.pack(expand=True, side="bottom", fill="both")
-    cargar_lista(textbox)
+    alumno_frame = customtkinter.CTkScrollableFrame(master=ver_lista_frame, fg_color="#FFFFFF")
+    alumno_frame.pack_propagate(True)
+    alumno_frame.pack(padx=0, pady=0, fill="both")
+    alumno_frame.configure(height=600)
+
+    for i in range(no_alumnos):
+        alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][0]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+        alumno_label.grid(row=i, column=0, sticky="W", padx=10)
+        alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][2]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+        alumno_label.grid(row=i, column=1, sticky="W", padx=20)
+        alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][1]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+        alumno_label.grid(row=i, column=2, sticky="W", padx=20)
+        alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][3]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+        alumno_label.grid(row=i, column=3, sticky="W", padx=20)
+        alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][4]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+        alumno_label.grid(row=i, column=4, sticky="W", padx=20)
+        alumno_label = customtkinter.CTkLabel(master=alumno_frame, text="", text_color="black", font=("Roboto Regular", 16, "bold"))
+        alumno_label.grid(row=i, column=5, sticky="W", padx=20)
+        print(f"Número: {lista[i][0]} | Apellido: {lista[i][2]} | Nombre: {lista[i][1]} |  Grupo: {lista[i][3]} | Boleta: {lista[i][4]}")
+        i =+ 1
     
 
 def pasar_lista_page():
@@ -416,9 +445,43 @@ def pasar_lista_page():
     pasar_lista_frame_top_label.pack(padx=10, pady=3, side="left", expand=False)
 
     #Main Frame
-    pasar_lista_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFFFFF")
+    pasar_lista_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#B6B6B6")
     pasar_lista_frame.pack_propagate(False)
-    pasar_lista_frame.pack(padx=0, pady=0, fill="both")
+    pasar_lista_frame.pack(padx=0, pady=0, side="top", fill="both", expand=True)
+    pasar_lista_frame.configure(height=600)
+
+    #Data Frame
+    info_frame = customtkinter.CTkFrame(master=pasar_lista_frame, fg_color="#FFFFFF")
+    info_frame.pack_propagate(False)
+    info_frame.pack(padx=0, pady=0, fill="both")
+    info_frame.configure(height=60)
+    info_listening_label = customtkinter.CTkLabel(master=info_frame, text="Escuchando: Deshabilitado", text_color="#B6B6B6", font=("Roboto Regular", 20, "bold"))
+    info_listening_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_timer_label = customtkinter.CTkLabel(master=info_frame, text="Timer: Deshabilitado", text_color="#B6B6B6", font=("Roboto Regular", 20, "bold"))
+    info_timer_label.pack(padx=10, pady=3, side="left", expand=True)
+    
+    info_frame = customtkinter.CTkFrame(master=pasar_lista_frame, fg_color="#FFFFFF")
+    info_frame.pack_propagate(True)
+    info_frame.pack(padx=0, pady=0, fill="both")
+    info_frame.configure(height=60)
+    info_label = customtkinter.CTkLabel(master=info_frame, text="No", text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=False)
+    info_label = customtkinter.CTkLabel(master=info_frame, text="Apellido", text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_label = customtkinter.CTkLabel(master=info_frame, text="Nombre", text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_label = customtkinter.CTkLabel(master=info_frame, text="Grupo", text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_label = customtkinter.CTkLabel(master=info_frame, text="Boleta", text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_label = customtkinter.CTkLabel(master=info_frame, text="Estado", text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+
+    #Lista de alumnos frame
+    alumno_frame = customtkinter.CTkScrollableFrame(master=pasar_lista_frame, fg_color="#FFFFFF")
+    alumno_frame.pack_propagate(True)
+    alumno_frame.configure(height=600)
+    alumno_frame.pack(padx=0, pady=0, side="top", fill="both", expand=True)
 
     textbox = customtkinter.CTkTextbox(master=pasar_lista_frame, fg_color="transparent", text_color="#404040")
     textbox.configure(font=('Roboto', 20), height=600)
@@ -439,7 +502,7 @@ def pasar_lista_page():
                                             width=160,
                                             height=40)
     button_continuar.place(relx=0.38, rely=0.3)
-    thread_start(textbox, button_continuar)
+    thread_start(textbox, button_continuar, pasar_lista_frame, info_label, alumno_frame, info_listening_label, info_timer_label)
 
 def frase_del_dia_page():
     delete_pages()
@@ -672,7 +735,7 @@ button_pasar_lista.bind("<Enter>", lambda event: button_pasar_lista.configure(te
 button_pasar_lista.bind("<Leave>", lambda event: button_pasar_lista.configure(text_color="#404040",
                                                         fg_color="white"))
 
-button_fdd = customtkinter.CTkButton(master=buttons_frame,
+"""button_fdd = customtkinter.CTkButton(master=buttons_frame,
                                   image=pasar_lista_icon,
                                   compound="left",
                                   text="Frase del Dia",
@@ -690,7 +753,7 @@ button_fdd.bind("<Enter>", lambda event: button_fdd.configure(text_color="#FFFFF
                                                         border_width=1,
                                                         fg_color="transparent"))
 button_fdd.bind("<Leave>", lambda event: button_fdd.configure(text_color="#404040",
-                                                        fg_color="white"))
+                                                        fg_color="white"))"""
 
 button_confguracion = customtkinter.CTkButton(master=buttons_frame,
                                   image=salir_icon,
