@@ -38,7 +38,10 @@ def update_variable(key, value):
     save_config(config_file, config_data)
 
 #Sacar valores del array grupos en el config.json
-grupos = config_data["grupos"]
+#grupos = config_data["grupos"]
+
+grupo_actual = str(config_data["variables"].get("grupo", ""))
+fecha_actual = str(config_data["variables"].get("fecha", ""))
 
 #Clear console
 def clear():
@@ -55,9 +58,11 @@ alumnos = []
 #Cargar lista de alumnos y elementos de db
 conn = sqlite3.connect('students.db')
 cursor = conn.cursor()
-lista = cursor.execute("SELECT * FROM students WHERE grupo='5CV32'").fetchall()
-no_alumnos = cursor.execute("SELECT COUNT(*) FROM students WHERE grupo='5CV32'").fetchone()[0]
-conn.close()
+lista = cursor.execute(f"SELECT * FROM students WHERE grupo='{grupo_actual}'").fetchall()
+no_alumnos = cursor.execute(f"SELECT COUNT(*) FROM students WHERE grupo='{grupo_actual}'").fetchone()[0]
+fechas = cursor.execute("SELECT DISTINCT fecha FROM students").fetchall()
+grupos = cursor.execute("SELECT DISTINCT grupo FROM students").fetchall()
+#conn.close()
 
 #Convertir cada tupla en una lista para poder modificarla
 lista = [list(tupla) for tupla in lista]
@@ -101,6 +106,8 @@ def tiempo_actual():
         time.sleep(1)
 
 def pase_lista(textbox, button_continuar, pasar_lista_frame, info_label, alumno_frame, info_listening_label, info_timer_label):
+    grupo_actual = str(config_data["variables"].get("grupo", ""))
+
     #Números del 1 al 25 en texto y su valor numérico
     numeros_texto = {
         "uno": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "siete": 7, "ocho": 8, "nueve": 9,
@@ -142,10 +149,10 @@ def pase_lista(textbox, button_continuar, pasar_lista_frame, info_label, alumno_
                     print(f"Variable cleaned_str: {cleaned_str}")
                     numero_reconocido = int(numeros_texto[numero])
                     print(f"Otra Variable: {numero_reconocido}")
+                    info_listening_label.configure(text=(f"Registrando Asistencia Para #{numero_reconocido}"), text_color="#F3B63A")
                     numero_reconocido = numero_reconocido - 1
-                    info_listening_label.configure(text="Registrando Asistencia...", text_color="#F3B63A")
-                    play("./assets/sounds/puntual.mp3")
                     lista[numero_reconocido][5] = "Puntual"
+                    play("./assets/sounds/puntual.mp3")                    
 
             info_listening_label.configure(text="Escuchando...", text_color="#45CE30")
 
@@ -214,10 +221,10 @@ def retardos(textbox, button_continuar, pasar_lista_frame, info_label, alumno_fr
                     print(f"Variable cleaned_str: {cleaned_str}")
                     numero_reconocido = int(numeros_texto[numero])
                     print(f"Otra Variable: {numero_reconocido}")
+                    info_listening_label.configure(text=(f"Registrando Retardo Para #{numero_reconocido}"), text_color="#F3B63A")
                     numero_reconocido = numero_reconocido - 1
-                    info_listening_label.configure(text="Registrando Retardo...", text_color="#F3B63A")
-                    play("./assets/sounds/puntual.mp3")
                     lista[numero_reconocido][5] = "Retardo"
+                    play("./assets/sounds/puntual.mp3")
             
                     info_listening_label.configure(text="Escuchando...", text_color="#45CE30")
                     if exit_event_retardos.is_set(): #Si se presiona el botón que termina el thread retardos
@@ -272,12 +279,20 @@ def countdown(info_timer_label):
     guardar_lista_db()
 
 def guardar_lista_db():
-    for i in range(25):
-        print(f"Número: {lista[i][0]} | Nombre: {lista[i][1]} | Apellido: {lista[i][2]} | Grupo: {lista[i][3]} | Boleta: {lista[i][4]}")
+    exit_event_retardos.set()
+    current_date = datetime.now().strftime("%d/%m/%Y")
+    #Cargar lista de alumnos y elementos de db
+    conn = sqlite3.connect('students.db')
+    cursor = conn.cursor()
+    alumnos = []
+    for i in range(no_alumnos):
+        alumnos.append([lista[i][0], lista[i][1], lista[i][2], lista[i][3], lista[i][4], lista[i][5], current_date])
         i =+ 1
-    pass
+    cursor.executemany("INSERT INTO students values (?,?,?,?,?,?,?)", alumnos)
+    conn.commit()
+    print(alumnos)
 
-def guardar_lista():
+def guardar_lista_excel():
     #exit_event_retardos.set()
     time.sleep(1)
     
@@ -329,6 +344,214 @@ def guardar_lista():
     current_date = datetime.now().strftime("%d-%m-%Y %H-%M")
     custom_workbook.save(f"Lista {current_date}.xlsx")
 
+def gestionar_alumno(no, nombre, apellido, grupo, boleta):
+
+    #Buscar Alumno
+    alumno = cursor.execute(f"""SELECT * FROM students WHERE
+                            (number='{no}') OR
+                            (first_name='{nombre}') OR
+                            (last_name='{apellido}') OR
+                            (grupo='{grupo}') OR
+                            (boleta='{boleta}')""").fetchall()
+    
+    no_asistencias = cursor.execute(f"SELECT COUNT (*) FROM students WHERE (last_name='{alumno[0][2]}') AND ((estado='Puntual') OR (estado='Retardo'))").fetchone()[0]
+    no_faltas = cursor.execute(f"SELECT COUNT (*) FROM students WHERE (last_name='{alumno[0][2]}') AND (estado='Falta')").fetchone()[0]
+    no_asistencias_puntual = cursor.execute(f"SELECT COUNT (*) FROM students WHERE (last_name='{alumno[0][2]}') AND (estado='Puntual')").fetchone()[0]
+    no_asistencias_retardo = cursor.execute(f"SELECT COUNT (*) FROM students WHERE (last_name='{alumno[0][2]}') AND (estado='Retardo')").fetchone()[0]
+    registros_totales = no_asistencias + no_faltas
+    porcentaje_asistencias = int((no_asistencias/(registros_totales))*100)
+
+
+    print(f"Asistencias: {no_asistencias}\nPuntuales: {no_asistencias_puntual}\nRetardos: {no_asistencias_retardo}\nFaltas: {no_faltas}\nPorcentaje: {porcentaje_asistencias}%")
+    if no_faltas >= 3:
+        print("Problema")
+    else:
+        print("En orden")
+
+    delete_pages()
+
+    #Top Frame
+    config_page_frame_top_bar = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
+    config_page_frame_top_bar.pack_propagate(False)
+    config_page_frame_top_bar.pack(padx=0, pady=0, expand=False, side="top", fill="x")
+    config_page_frame_top_bar.configure(height=60)
+
+    #Top Frame Label
+    config_page_frame_top_label = customtkinter.CTkLabel(master=config_page_frame_top_bar, text=(f"{alumno[0][1]} {alumno[0][2]}"), text_color="#75003E", font=("Roboto Regular", 20, "bold"))
+    config_page_frame_top_label.pack(padx=10, pady=3, side="left", expand=False)
+
+    #Main Frame
+    config_page_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#F3F4F7")
+    config_page_frame.pack(padx=0, pady=0, expand=True, side="top", fill="both")
+
+    #Data Frame
+    info_frame = customtkinter.CTkFrame(master=config_page_frame, fg_color="#FFFFFF")
+    info_frame.pack_propagate(True)
+    info_frame.pack(padx=0, pady=0, fill="both")
+    info_frame.configure(height=60)
+    info_label = customtkinter.CTkLabel(master=info_frame, text=("Asistencias"), text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_label = customtkinter.CTkLabel(master=info_frame, text=("Puntuales"), text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_label = customtkinter.CTkLabel(master=info_frame, text=("Retardos"), text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_label = customtkinter.CTkLabel(master=info_frame, text=("Faltas"), text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_label = customtkinter.CTkLabel(master=info_frame, text=("Porcentaje de Asistencias"), text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_label = customtkinter.CTkLabel(master=info_frame, text=("Status"), text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+
+    info_frame = customtkinter.CTkFrame(master=config_page_frame, fg_color="#FFFFFF")
+    info_frame.pack_propagate(True)
+    info_frame.pack(padx=0, pady=0, fill="both")
+    info_frame.configure(height=60)
+    info_label = customtkinter.CTkLabel(master=info_frame, text=no_asistencias, text_color="black", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_label = customtkinter.CTkLabel(master=info_frame, text=no_asistencias_puntual, text_color="#45CE30", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_label = customtkinter.CTkLabel(master=info_frame, text=no_asistencias_retardo, text_color="#F3B63A", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_label = customtkinter.CTkLabel(master=info_frame, text=no_faltas, text_color="red", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_label = customtkinter.CTkLabel(master=info_frame, text=(f"{porcentaje_asistencias}%"), text_color="black", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_label = customtkinter.CTkLabel(master=info_frame, text="N/A", text_color="black", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
+    if no_faltas >= 3:
+        info_label.configure(text="Problema", text_color="red")
+    else:
+        info_label.configure(text="En Orden", text_color="#45CE30")
+
+    #Alumno Frame Individual
+    alumno_frame = customtkinter.CTkScrollableFrame(master=config_page_frame, fg_color="#FFFFFF")
+    alumno_frame.pack_propagate(True)
+    alumno_frame.pack(padx=0, pady=0, fill="both")
+    alumno_frame.configure(height=600)
+
+    
+
+    for i in range(registros_totales):
+        alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{alumno[i][0]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+        alumno_label.grid(row=i, column=0, sticky="W", padx=10)
+        alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{alumno[i][2]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+        alumno_label.grid(row=i, column=1, sticky="W", padx=10)
+        alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{alumno[i][1]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+        alumno_label.grid(row=i, column=2, sticky="W", padx=20)
+        alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{alumno[i][3]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+        alumno_label.grid(row=i, column=3, sticky="W", padx=20)
+        alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{alumno[i][4]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+        alumno_label.grid(row=i, column=4, sticky="W", padx=20)
+        if lista[i][5] == "Puntual":
+            alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{alumno[i][5]}"), text_color="#45CE30", font=("Roboto Regular", 16, "bold"))
+            alumno_label.grid(row=i, column=5, sticky="W", padx=20)
+        elif lista[i][5] == "Retardo":
+            alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{alumno[i][5]}"), text_color="#F3B63A", font=("Roboto Regular", 16, "bold"))
+            alumno_label.grid(row=i, column=5, sticky="W", padx=20)
+        else:
+            alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{alumno[i][5]}"), text_color="red", font=("Roboto Regular", 16, "bold"))
+            alumno_label.grid(row=i, column=5, sticky="W", padx=20)
+        alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{alumno[i][6]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+        alumno_label.grid(row=i, column=6, sticky="W", padx=20)
+        i =+ 1
+
+def editar_alumno(no, nombre, apellido, grupo, boleta):
+
+    #Buscar Alumno
+    alumno = cursor.execute(f"""SELECT * FROM students WHERE
+                            (number='{no}') OR
+                            (first_name='{nombre}') OR
+                            (last_name='{apellido}') OR
+                            (grupo='{grupo}') OR
+                            (boleta='{boleta}')""").fetchall()
+    
+    no_asistencias = cursor.execute(f"SELECT COUNT (*) FROM students WHERE (last_name='{alumno[0][2]}') AND ((estado='Puntual') OR (estado='Retardo'))").fetchone()[0]
+    no_faltas = cursor.execute(f"SELECT COUNT (*) FROM students WHERE (last_name='{alumno[0][2]}') AND (estado='Falta')").fetchone()[0]
+    no_asistencias_puntual = cursor.execute(f"SELECT COUNT (*) FROM students WHERE (last_name='{alumno[0][2]}') AND (estado='Puntual')").fetchone()[0]
+    no_asistencias_retardo = cursor.execute(f"SELECT COUNT (*) FROM students WHERE (last_name='{alumno[0][2]}') AND (estado='Retardo')").fetchone()[0]
+    porcentaje_asistencias = int((no_asistencias/(no_asistencias + no_faltas))*100)
+
+    print(f"Asistencias: {no_asistencias}\nPuntuales: {no_asistencias_puntual}\nRetardos: {no_asistencias_retardo}\nFaltas: {no_faltas}\nPorcentaje: {porcentaje_asistencias}%")
+    if no_faltas >= 3:
+        print("Problema")
+    else:
+        print("En orden")
+
+    delete_pages()
+
+    #Top Frame
+    config_page_frame_top_bar = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
+    config_page_frame_top_bar.pack_propagate(False)
+    config_page_frame_top_bar.pack(padx=0, pady=0, expand=False, side="top", fill="x")
+    config_page_frame_top_bar.configure(height=60)
+
+    #Top Frame Label
+    config_page_frame_top_label = customtkinter.CTkLabel(master=config_page_frame_top_bar, text=(f"{alumno[0][1]} {alumno[0][2]}"), text_color="#75003E", font=("Roboto Regular", 20, "bold"))
+    config_page_frame_top_label.pack(padx=10, pady=3, side="left", expand=False)
+
+    #Main Frame
+    config_page_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#F3F4F7")
+    config_page_frame.pack(padx=0, pady=0, expand=True, side="top", fill="both")
+
+    
+    config_page_button_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
+    config_page_button_frame.pack(padx=0, pady=0, expand=False, side="bottom", fill="x")
+    config_page_button_frame.configure(height=120)
+
+    #Numero
+    no_label = customtkinter.CTkLabel(master=config_page_frame, text="No", text_color="black", font=("Roboto Regular", 16, "bold"))
+    no_label.pack()
+    no_entry = customtkinter.CTkEntry(master=config_page_frame)
+    no_entry.insert(0, alumno[0][0])
+    no_entry.pack()
+
+    #Nombre
+    nombre_label = customtkinter.CTkLabel(master=config_page_frame, text="Nombre", text_color="black", font=("Roboto Regular", 16, "bold"))
+    nombre_label.pack()
+    nombre_entry = customtkinter.CTkEntry(master=config_page_frame)
+    nombre_entry.insert(0, alumno[0][1])
+    nombre_entry.pack()
+
+    #Apellido
+    apellido_label = customtkinter.CTkLabel(master=config_page_frame, text="Apellido", text_color="black", font=("Roboto Regular", 16, "bold"))
+    apellido_label.pack()
+    apellido_entry = customtkinter.CTkEntry(master=config_page_frame)
+    apellido_entry.insert(0, alumno[0][2])
+    apellido_entry.pack()
+
+    #Grupo
+    grupo_label = customtkinter.CTkLabel(master=config_page_frame, text="Grupo", text_color="black", font=("Roboto Regular", 16, "bold"))
+    grupo_label.pack()
+    grupo_entry = customtkinter.CTkEntry(master=config_page_frame)
+    grupo_entry.insert(0, alumno[0][3])
+    grupo_entry.pack()
+
+    #Boleta
+    boleta_label = customtkinter.CTkLabel(master=config_page_frame, text="Boleta", text_color="black", font=("Roboto Regular", 16, "bold"))
+    boleta_label.pack()
+    boleta_entry = customtkinter.CTkEntry(master=config_page_frame)
+    boleta_entry.insert(0, alumno[0][4])
+    boleta_entry.pack()
+
+    button_guardar = customtkinter.CTkButton(master=config_page_button_frame,
+                                                fg_color="#75003E",
+                                                compound="left",
+                                                text="Guardar",
+                                                text_color="#FFFFFF",
+                                                font=("Roboto Regular", 16, "bold"),
+                                                corner_radius=5,
+                                                width=160,
+                                                height=40,
+                                                command=lambda:
+                                                [   
+                                                    gestionar_alumno(no_entry.get(),
+                                                                     nombre_entry.get(),
+                                                                     apellido_entry.get(),
+                                                                     grupo_entry.get(),
+                                                                     boleta_entry.get())
+                                                ])
+    button_guardar.place(relx=0.38, rely=0.3)
+
 def frase_del_dia():
     #frase_del_dia_main_label.tag_config('puntual', foreground="#45CE30")
     
@@ -355,26 +578,22 @@ def frase_del_dia():
 
 def salir_programa():
     quit()
-
-def ver_lista():
-    conn = sqlite3.connect('students.db')
-    cursor = conn.cursor()
-    lista = cursor.execute("SELECT * FROM students WHERE grupo='5CV32'").fetchall()
-    for i in range(25):
-        print(f"Número: {lista[i][0]} | Nombre: {lista[i][1]} | Apellido: {lista[i][2]} | Grupo: {lista[i][3]} | Boleta: {lista[i][4]}")
-        i =+ 1
      
 app = customtkinter.CTk()
 app.title("Speech Recognition App")
-app.geometry("1024x768")
+app.geometry("1280x768")
 
 def delete_pages():
     for frame in main_frame.winfo_children():
         frame.destroy()
 
 def ver_lista_page():
-    
     delete_pages()
+
+    grupo_actual = config_data["variables"]["grupo"]
+    fecha_actual = config_data["variables"]["fecha"]
+    lista = cursor.execute(f"SELECT * FROM students WHERE fecha='{fecha_actual}'").fetchall()
+    no_alumnos = cursor.execute(f"SELECT COUNT(*) FROM students WHERE fecha='{fecha_actual}'").fetchone()[0]
 
     #Top Frame
     ver_lista_frame_top_bar = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
@@ -383,7 +602,7 @@ def ver_lista_page():
     ver_lista_frame_top_bar.configure(height=60)
 
     #Top Frame Label
-    ver_lista_frame_top_label = customtkinter.CTkLabel(master=ver_lista_frame_top_bar, text=(f"Grupo: 5CV36"), text_color="#75003E", font=("Roboto Regular", 20, "bold"))
+    ver_lista_frame_top_label = customtkinter.CTkLabel(master=ver_lista_frame_top_bar, text=(f"Grupo: {grupo_actual} - Fecha: {fecha_actual}"), text_color="#75003E", font=("Roboto Regular", 20, "bold"))
     ver_lista_frame_top_label.pack(padx=10, pady=3, side="left", expand=False)
 
     #Main Frame
@@ -408,29 +627,39 @@ def ver_lista_page():
     info_label.pack(padx=10, pady=3, side="left", expand=True)
     info_label = customtkinter.CTkLabel(master=info_frame, text="Estado", text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
     info_label.pack(padx=10, pady=3, side="left", expand=True)
+    info_label = customtkinter.CTkLabel(master=info_frame, text="Fecha", text_color="#B6B6B6", font=("Roboto Regular", 16, "bold"))
+    info_label.pack(padx=10, pady=3, side="left", expand=True)
 
     alumno_frame = customtkinter.CTkScrollableFrame(master=ver_lista_frame, fg_color="#FFFFFF")
     alumno_frame.pack_propagate(True)
     alumno_frame.pack(padx=0, pady=0, fill="both")
     alumno_frame.configure(height=600)
 
+
     for i in range(no_alumnos):
         alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][0]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
         alumno_label.grid(row=i, column=0, sticky="W", padx=10)
         alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][2]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
-        alumno_label.grid(row=i, column=1, sticky="W", padx=20)
+        alumno_label.grid(row=i, column=1, sticky="W", padx=10)
         alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][1]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
         alumno_label.grid(row=i, column=2, sticky="W", padx=20)
         alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][3]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
         alumno_label.grid(row=i, column=3, sticky="W", padx=20)
         alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][4]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
         alumno_label.grid(row=i, column=4, sticky="W", padx=20)
-        alumno_label = customtkinter.CTkLabel(master=alumno_frame, text="", text_color="black", font=("Roboto Regular", 16, "bold"))
-        alumno_label.grid(row=i, column=5, sticky="W", padx=20)
-        print(f"Número: {lista[i][0]} | Apellido: {lista[i][2]} | Nombre: {lista[i][1]} |  Grupo: {lista[i][3]} | Boleta: {lista[i][4]}")
+        if lista[i][5] == "Puntual":
+            alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][5]}"), text_color="#45CE30", font=("Roboto Regular", 16, "bold"))
+            alumno_label.grid(row=i, column=5, sticky="W", padx=20)
+        elif lista[i][5] == "Retardo":
+            alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][5]}"), text_color="#F3B63A", font=("Roboto Regular", 16, "bold"))
+            alumno_label.grid(row=i, column=5, sticky="W", padx=20)
+        else:
+            alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][5]}"), text_color="red", font=("Roboto Regular", 16, "bold"))
+            alumno_label.grid(row=i, column=5, sticky="W", padx=20)
+        alumno_label = customtkinter.CTkLabel(master=alumno_frame, text=(f"{lista[i][6]}"), text_color="black", font=("Roboto Regular", 16, "bold"))
+        alumno_label.grid(row=i, column=6, sticky="W", padx=20)
         i =+ 1
     
-
 def pasar_lista_page():
     delete_pages()
 
@@ -529,6 +758,102 @@ def frase_del_dia_page():
 
     frase_del_dia()
 
+def gestionar_page():
+    delete_pages()
+
+    #Top Frame
+    config_page_frame_top_bar = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
+    config_page_frame_top_bar.pack_propagate(False)
+    config_page_frame_top_bar.pack(padx=0, pady=0, expand=False, side="top", fill="x")
+    config_page_frame_top_bar.configure(height=60)
+
+    #Top Frame Label
+    config_page_frame_top_label = customtkinter.CTkLabel(master=config_page_frame_top_bar, text=(f"Gestionar Estudiantes"), text_color="#75003E", font=("Roboto Regular", 20, "bold"))
+    config_page_frame_top_label.pack(padx=10, pady=3, side="left", expand=False)
+
+    #Main Frame
+    config_page_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#F3F4F7")
+    config_page_frame.pack(padx=0, pady=0, expand=True, side="top", fill="both")
+
+    
+    config_page_button_frame = customtkinter.CTkFrame(master=main_frame, fg_color="#FFE3F3")
+    config_page_button_frame.pack(padx=0, pady=0, expand=False, side="bottom", fill="x")
+    config_page_button_frame.configure(height=120)
+
+    #Entries
+
+    #Numero
+    no_label = customtkinter.CTkLabel(master=config_page_frame, text="No", text_color="black", font=("Roboto Regular", 16, "bold"))
+    no_label.pack()
+    no_entry = customtkinter.CTkEntry(master=config_page_frame)
+    no_entry.insert(0, "")
+    no_entry.pack()
+
+    #Nombre
+    nombre_label = customtkinter.CTkLabel(master=config_page_frame, text="Nombre", text_color="black", font=("Roboto Regular", 16, "bold"))
+    nombre_label.pack()
+    nombre_entry = customtkinter.CTkEntry(master=config_page_frame)
+    nombre_entry.insert(0, "")
+    nombre_entry.pack()
+
+    #Apellido
+    apellido_label = customtkinter.CTkLabel(master=config_page_frame, text="Apellido", text_color="black", font=("Roboto Regular", 16, "bold"))
+    apellido_label.pack()
+    apellido_entry = customtkinter.CTkEntry(master=config_page_frame)
+    apellido_entry.insert(0, "")
+    apellido_entry.pack()
+
+    #Grupo
+    grupo_label = customtkinter.CTkLabel(master=config_page_frame, text="Grupo", text_color="black", font=("Roboto Regular", 16, "bold"))
+    grupo_label.pack()
+    grupo_entry = customtkinter.CTkEntry(master=config_page_frame)
+    grupo_entry.insert(0, "")
+    grupo_entry.pack()
+
+    #Boleta
+    boleta_label = customtkinter.CTkLabel(master=config_page_frame, text="Boleta", text_color="black", font=("Roboto Regular", 16, "bold"))
+    boleta_label.pack()
+    boleta_entry = customtkinter.CTkEntry(master=config_page_frame)
+    boleta_entry.insert(0, "")
+    boleta_entry.pack()
+
+    button_analizar = customtkinter.CTkButton(master=config_page_button_frame,
+                                                fg_color="#75003E",
+                                                compound="left",
+                                                text="Buscar",
+                                                text_color="#FFFFFF",
+                                                font=("Roboto Regular", 16, "bold"),
+                                                corner_radius=5,
+                                                width=160,
+                                                height=40,
+                                                command=lambda:
+                                                [   
+                                                    gestionar_alumno(no_entry.get(),
+                                                                     nombre_entry.get(),
+                                                                     apellido_entry.get(),
+                                                                     grupo_entry.get(),
+                                                                     boleta_entry.get())
+                                                ])
+    button_analizar.pack()
+    button_editar = customtkinter.CTkButton(master=config_page_button_frame,
+                                                fg_color="#75003E",
+                                                compound="left",
+                                                text="Editar",
+                                                text_color="#FFFFFF",
+                                                font=("Roboto Regular", 16, "bold"),
+                                                corner_radius=5,
+                                                width=160,
+                                                height=40,
+                                                command=lambda:
+                                                [   
+                                                    editar_alumno(no_entry.get(),
+                                                                     nombre_entry.get(),
+                                                                     apellido_entry.get(),
+                                                                     grupo_entry.get(),
+                                                                     boleta_entry.get())
+                                                ])
+    button_editar.pack()
+
 def config_page():
     delete_pages()
 
@@ -570,21 +895,20 @@ def config_page():
     #Seleccionar Grupos
     grupos_label = customtkinter.CTkLabel(master=config_page_frame, text="Seleccionar Grupo", text_color="black", font=("Roboto Regular", 16, "bold"))
     grupos_label.pack()
-    grupos_dropdown = customtkinter.CTkComboBox(master=config_page_frame,
-                                                values=[grupos[1],
-                                                        grupos[1],
-                                                        grupos[2]])
+    
+    grupos_dropdown = customtkinter.CTkComboBox(master=config_page_frame, values=[grupo_actual])
+    grupos_valores = [grupo[0] for grupo in grupos]  # Extraer solo los valores
+    grupos_dropdown.configure(values=grupos_valores)
     grupos_dropdown.pack()
-    grupo_actual = str(grupos_dropdown.get()) #Conseguir la selección del grupo actual
-    grupos_actual_label = customtkinter.CTkLabel(master=config_page_frame, text=(f"Grupo Actual: {grupo_actual}"), text_color="black", font=("Roboto Regular", 16, "bold"))
-    grupos_actual_label.pack()
 
-    #Agregar Grupos
-    grupos_label = customtkinter.CTkLabel(master=config_page_frame, text="Agregar un Grupo", text_color="black", font=("Roboto Regular", 16, "bold"))
-    grupos_label.pack()
-    grupos_entry = customtkinter.CTkEntry(master=config_page_frame)
-    grupos_entry.insert(0, str(config_data["variables"].get("nombre", "")))
-    grupos_entry.pack()
+    #Seleccionar Fecha
+    fechas_label = customtkinter.CTkLabel(master=config_page_frame, text="Seleccionar Fecha", text_color="black", font=("Roboto Regular", 16, "bold"))
+    fechas_label.pack()
+    
+    fechas_dropdown = customtkinter.CTkComboBox(master=config_page_frame, values=[fecha_actual])
+    fechas_valores = [fecha[0] for fecha in fechas]  # Extraer solo los valores
+    fechas_dropdown.configure(values=fechas_valores)
+    fechas_dropdown.pack()
 
     #Modelo de Reconocimiento
     modelo_label = customtkinter.CTkLabel(master=config_page_frame, text="Seleccionar Modelo", text_color="black", font=("Roboto Regular", 16, "bold"))
@@ -616,6 +940,8 @@ def config_page():
                                                 [   
                                                     update_variable("tiempo_tolerancia", tolerancia_entry.get()),
                                                     update_variable("frase_del_dia", frase_del_dia_entry.get()),
+                                                    update_variable("grupo", grupos_dropdown.get()),
+                                                    update_variable("fecha", fechas_dropdown.get()),
                                                  
                                                 ])
     button_actualizar.place(relx=0.38, rely=0.3)
@@ -754,6 +1080,26 @@ button_fdd.bind("<Enter>", lambda event: button_fdd.configure(text_color="#FFFFF
                                                         fg_color="transparent"))
 button_fdd.bind("<Leave>", lambda event: button_fdd.configure(text_color="#404040",
                                                         fg_color="white"))"""
+
+button_gestionar = customtkinter.CTkButton(master=buttons_frame,
+                                  image=salir_icon,
+                                  compound="left",
+                                  text="Gestionar",
+                                  text_color="#404040",
+                                  font=("Roboto Regular", 16, "bold"),
+                                  corner_radius=5,
+                                  fg_color="#FFFFFF",
+                                  width=160,
+                                  height=40,
+                                  anchor="w",
+                                  command=gestionar_page)
+button_gestionar.pack(padx=20, pady=20)
+button_gestionar.bind("<Enter>", lambda event: button_gestionar.configure(text_color="#FFFFFF",
+                                                        border_color="#FFFFFF",
+                                                        border_width=1,
+                                                        fg_color="transparent"))
+button_gestionar.bind("<Leave>", lambda event: button_gestionar.configure(text_color="#404040",
+                                                        fg_color="white"))
 
 button_confguracion = customtkinter.CTkButton(master=buttons_frame,
                                   image=salir_icon,

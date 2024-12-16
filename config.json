@@ -1,8 +1,10 @@
 {
     "variables": {
         "nombre": "Juan Jose",
-        "tiempo_tolerancia": "3",
-        "frase_del_dia": "Esta es la frase del dia"
+        "tiempo_tolerancia": "7",
+        "frase_del_dia": "Ejemplo de Frase",
+        "grupo": "5CV32",
+        "fecha": "15/12/2024"
     },
     "grupos": [
         "5CV36",
